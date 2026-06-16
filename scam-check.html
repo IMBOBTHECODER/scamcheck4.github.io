@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scam Check</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg-secondary: #f5f5f3;
+    --text-primary: #1a1a18;
+    --text-secondary: #6b6b67;
+    --text-tertiary: #9b9b97;
+    --border: rgba(0,0,0,0.12);
+    --border-md: rgba(0,0,0,0.22);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c;
+      --bg-secondary: #2a2a28;
+      --text-primary: #f0efe8;
+      --text-secondary: #a0a09a;
+      --text-tertiary: #70706a;
+      --border: rgba(255,255,255,0.12);
+      --border-md: rgba(255,255,255,0.22);
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 3rem 1rem;
+  }
+
+  .wrap { width: 100%; max-width: 580px; }
+
+  .header { margin-bottom: 2rem; }
+  .header h1 {
+    font-size: 22px; font-weight: 600; color: var(--text-primary);
+    display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+  }
+  .header h1 i { font-size: 22px; }
+  .header p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+
+  .card {
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  label.input-label {
+    display: block; font-size: 13px;
+    color: var(--text-secondary); margin-bottom: 8px;
+  }
+
+  textarea {
+    width: 100%; min-height: 130px; resize: vertical;
+    font-family: inherit; font-size: 15px; line-height: 1.65;
+    color: var(--text-primary); background: var(--bg-secondary);
+    border: 0.5px solid var(--border); border-radius: var(--radius-md);
+    padding: 10px 12px; outline: none; transition: border-color 0.15s;
+  }
+  textarea:focus { border-color: var(--border-md); }
+
+  .btn-row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+
+  #scan-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 20px; font-size: 14px; font-weight: 500;
+    background: var(--text-primary); color: var(--bg);
+    border: none; border-radius: var(--radius-md);
+    cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+  }
+  #scan-btn:hover { opacity: 0.82; }
+  #scan-btn:active { transform: scale(0.98); }
+  #scan-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  #clear-btn {
+    padding: 9px 14px; font-size: 14px;
+    background: transparent; color: var(--text-secondary);
+    border: 0.5px solid var(--border); border-radius: var(--radius-md);
+    cursor: pointer; transition: background 0.15s;
+  }
+  #clear-btn:hover { background: var(--bg-secondary); }
+
+  .error-msg {
+    display: none; font-size: 13px; color: #a32d2d;
+    align-items: center; gap: 5px;
+  }
+  .error-msg.visible { display: inline-flex; }
+
+  /* Spinner */
+  .spinner { display: none; width: 16px; height: 16px; }
+  .spinner.active { display: block; animation: rotate 0.8s linear infinite; }
+  @keyframes rotate { to { transform: rotate(360deg); } }
+  .spinner circle {
+    fill: none; stroke: var(--bg); stroke-width: 2.5;
+    stroke-dasharray: 28; stroke-dashoffset: 10;
+  }
+
+  /* Result card */
+  .result-card { display: none; }
+  .result-card.visible { display: block; }
+
+  .level-display { display: flex; align-items: center; gap: 16px; margin-bottom: 1.25rem; }
+  .level-badge {
+    width: 64px; height: 64px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 600; flex-shrink: 0;
+  }
+  .level-1 .level-badge { background: #EAF3DE; color: #27500A; }
+  .level-2 .level-badge { background: #FAEEDA; color: #633806; }
+  .level-3 .level-badge { background: #FCEBEB; color: #791F1F; }
+
+  .level-title { font-size: 18px; font-weight: 600; color: var(--text-primary); }
+  .level-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+
+  .meter { display: flex; gap: 6px; margin-bottom: 1.25rem; }
+  .meter-seg { flex: 1; height: 6px; border-radius: 3px; background: var(--border); }
+  .level-1 .meter-seg:nth-child(1) { background: #639922; }
+  .level-2 .meter-seg:nth-child(1),
+  .level-2 .meter-seg:nth-child(2) { background: #BA7517; }
+  .level-3 .meter-seg { background: #E24B4A; }
+
+  .divider { border: none; border-top: 0.5px solid var(--border); margin: 1rem 0; }
+
+  .analysis-label {
+    font-size: 11px; color: var(--text-tertiary);
+    text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px;
+  }
+  .analysis-text { font-size: 14px; color: var(--text-secondary); line-height: 1.7; }
+
+  .flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .flag {
+    font-size: 12px; padding: 3px 10px; border-radius: 20px;
+    background: var(--bg-secondary); color: var(--text-secondary);
+    border: 0.5px solid var(--border);
+  }
+  .flag.red   { background: #FCEBEB; color: #791F1F; border-color: #F7C1C1; }
+  .flag.amber { background: #FAEEDA; color: #633806; border-color: #FAC775; }
+  .flag.green { background: #EAF3DE; color: #27500A; border-color: #C0DD97; }
+
+  .footer-note {
+    font-size: 12px; color: var(--text-tertiary);
+    margin-top: 1.5rem; line-height: 1.6;
+    display: flex; align-items: flex-start; gap: 5px;
+  }
+  .footer-note i { font-size: 13px; margin-top: 1px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1><i class="ti ti-shield-search"></i> Scam check</h1>
+    <p>Dán tin nhắn vào đây để check độ nguy hiểm của nó.</p>
+  </div>
+
+  <div class="card">
+    <label class="input-label" for="msg-input">Tin nhắn để check</label>
+    <textarea id="msg-input" placeholder="Dán tin nhắn vào đây..."></textarea>
+    <div class="btn-row">
+      <button id="scan-btn">
+        <svg class="spinner" id="spinner" viewBox="0 0 16 16">
+          <circle cx="8" cy="8" r="5"/>
+        </svg>
+        <i class="ti ti-shield-check" id="btn-icon" style="font-size:16px;"></i>
+        Scam check
+      </button>
+      <button id="clear-btn">Clear</button>
+      <span class="error-msg" id="err-msg">
+        <i class="ti ti-alert-circle" style="font-size:14px;"></i>
+        <span id="err-text"></span>
+      </span>
+    </div>
+  </div>
+
+  <div class="card result-card" id="result-card">
+    <div class="level-display">
+      <div class="level-badge" id="level-badge"></div>
+      <div>
+        <div class="level-title" id="level-title"></div>
+        <div class="level-subtitle" id="level-subtitle"></div>
+      </div>
+    </div>
+    <div class="meter">
+      <div class="meter-seg"></div>
+      <div class="meter-seg"></div>
+      <div class="meter-seg"></div>
+    </div>
+    <hr class="divider">
+    <div class="analysis-label">Analysis</div>
+    <div class="analysis-text" id="analysis-text"></div>
+    <div class="flags" id="flags"></div>
+  </div>
+
+  <p class="footer-note">
+    <i class="ti ti-lock"></i>
+    ScamCheck là công cụ giáo dục do nhóm học viên phát triển và đánh giá của ứng dụng không thay thế cảnh báo chính thức từ ngân hàng hoặc cơ quan chức năng. Khi nghi ngờ, người dùng nên gọi tổng đài chính thức của ngân hàng được in trên thẻ.
+  </p>
+</div>
+
+<script>
+  // ─── PUT YOUR API KEY HERE ───────────────────────────────────────────────
+  const API_KEY = 'YOUR_API_KEY_HERE';
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const LEVELS = {
+    1: { title: 'Low risk',    subtitle: 'Likely safe — no major red flags detected',  icon: '1', cls: 'level-1' },
+    2: { title: 'Medium risk', subtitle: 'Suspicious — treat with caution',             icon: '2', cls: 'level-2' },
+    3: { title: 'High risk',   subtitle: 'Likely a scam — do not engage',              icon: '3', cls: 'level-3' },
+  };
+
+  const btn       = document.getElementById('scan-btn');
+  const btnIcon   = document.getElementById('btn-icon');
+  const spinner   = document.getElementById('spinner');
+  const textarea  = document.getElementById('msg-input');
+  const resultCard= document.getElementById('result-card');
+  const errMsg    = document.getElementById('err-msg');
+  const errText   = document.getElementById('err-text');
+
+  function showError(msg) { errText.textContent = msg; errMsg.classList.add('visible'); }
+  function hideError()    { errMsg.classList.remove('visible'); }
+  function setLoading(on) {
+    btn.disabled = on;
+    spinner.classList.toggle('active', on);
+    btnIcon.style.display = on ? 'none' : 'inline';
+  }
+
+  document.getElementById('clear-btn').onclick = () => {
+    textarea.value = '';
+    resultCard.className = 'card result-card';
+    hideError();
+  };
+
+  btn.onclick = async () => {
+    const msg = textarea.value.trim();
+    if (!msg) { showError('Paste a message to check.'); return; }
+    hideError();
+    setLoading(true);
+    resultCard.className = 'card result-card';
+
+    const systemPrompt = `You are a scam detection expert. Analyze the message and return ONLY a JSON object (no markdown, no preamble) with these fields:
+{
+  "level": 1 | 2 | 3,
+  "analysis": "2-3 sentence explanation of why this danger level was assigned",
+  "flags": ["flag1", "flag2", ...]
+}
+Level guide:
+1 = Low risk: message seems legitimate, no manipulation tactics
+2 = Medium risk: some suspicious elements, urgent language, unusual requests, or mild pressure tactics
+3 = High risk: clear scam indicators — impersonation, fake prizes, requests for money/OTP/passwords, urgent pressure, phishing links
+The flags array should list specific red flags found (or "No major red flags" if level 1). Keep flags short (2-5 words each). Return only valid JSON.`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': API_KEY,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 500,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: msg }],
+        }),
+      });
+
+      const data = await res.json();
+      if (data.error) { showError(data.error.message || 'API error.'); setLoading(false); return; }
+
+      const raw = data.content.map(b => b.text || '').join('');
+      let parsed;
+      try {
+        parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+      } catch {
+        showError('Could not parse response. Try again.');
+        setLoading(false);
+        return;
+      }
+
+      const level = Math.max(1, Math.min(3, parseInt(parsed.level) || 1));
+      const meta  = LEVELS[level];
+
+      resultCard.className = `card result-card visible ${meta.cls}`;
+      document.getElementById('level-badge').textContent   = level;
+      document.getElementById('level-title').textContent   = meta.title;
+      document.getElementById('level-subtitle').textContent= meta.subtitle;
+      document.getElementById('analysis-text').textContent = parsed.analysis || '';
+
+      const flagsEl   = document.getElementById('flags');
+      const flagClass = level === 1 ? 'green' : level === 2 ? 'amber' : 'red';
+      flagsEl.innerHTML = '';
+      (parsed.flags || []).forEach(f => {
+        const span = document.createElement('span');
+        span.className = `flag ${flagClass}`;
+        span.textContent = f;
+        flagsEl.appendChild(span);
+      });
+    } catch (e) {
+      showError('Network error. Check your connection.');
+    }
+
+    setLoading(false);
+  };
+</script>
+</body>
+</html>
