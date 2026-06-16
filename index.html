@@ -172,16 +172,16 @@
     <label class="input-label" for="msg-input">Tin nhắn để check</label>
     <textarea id="msg-input" placeholder="Dán tin nhắn vào đây..."></textarea>
     <div class="btn-row">
-      <button id="scan-btn">
-        <svg class="spinner" id="spinner" viewBox="0 0 16 16">
+      <button id="scan-btn" aria-label="Scan message for scams">
+        <svg class="spinner" id="spinner" viewBox="0 0 16 16" aria-hidden="true">
           <circle cx="8" cy="8" r="5"/>
         </svg>
-        <i class="ti ti-shield-check" id="btn-icon" style="font-size:16px;"></i>
+        <i class="ti ti-shield-check" id="btn-icon" style="font-size:16px;" aria-hidden="true"></i>
         Scam check
       </button>
       <button id="clear-btn">Clear</button>
-      <span class="error-msg" id="err-msg">
-        <i class="ti ti-alert-circle" style="font-size:14px;"></i>
+      <span class="error-msg" id="err-msg" role="alert" aria-live="polite">
+        <i class="ti ti-alert-circle" style="font-size:14px;" aria-hidden="true"></i>
         <span id="err-text"></span>
       </span>
     </div>
@@ -218,9 +218,9 @@
   // ─────────────────────────────────────────────────────────────────────────
 
   const LEVELS = {
-    1: { title: 'Low risk',    subtitle: 'Likely safe — no major red flags detected',  icon: '1', cls: 'level-1' },
-    2: { title: 'Medium risk', subtitle: 'Suspicious — treat with caution',             icon: '2', cls: 'level-2' },
-    3: { title: 'High risk',   subtitle: 'Likely a scam — do not engage',              icon: '3', cls: 'level-3' },
+    1: { title: 'Low risk',    subtitle: 'Likely safe — no major red flags detected', cls: 'level-1' },
+    2: { title: 'Medium risk', subtitle: 'Suspicious — treat with caution',            cls: 'level-2' },
+    3: { title: 'High risk',   subtitle: 'Likely a scam — do not engage',             cls: 'level-3' },
   };
 
   const btn       = document.getElementById('scan-btn');
@@ -281,27 +281,35 @@ The flags array should list specific red flags found (or "No major red flags" if
         }),
       });
 
-      const data = await res.json();
-      if (data.error) { showError(data.error.message || 'API error.'); setLoading(false); return; }
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        showError(errData?.error?.message || `API error (${res.status}).`);
+        return;
+      }
 
-      const raw = data.content.map(b => b.text || '').join('');
+      const data = await res.json();
+      if (data.error) { showError(data.error.message || 'API error.'); return; }
+
+      const content = data.content;
+      if (!content || !content.length) { showError('Empty response from API.'); return; }
+
+      const raw = content.map(b => b.text || '').join('');
       let parsed;
       try {
         parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
       } catch {
         showError('Could not parse response. Try again.');
-        setLoading(false);
         return;
       }
 
-      const level = Math.max(1, Math.min(3, parseInt(parsed.level) || 1));
-      const meta  = LEVELS[level];
+      const level    = Math.max(1, Math.min(3, parseInt(parsed.level, 10) || 1));
+      const levelMeta = LEVELS[level];
 
-      resultCard.className = `card result-card visible ${meta.cls}`;
-      document.getElementById('level-badge').textContent   = level;
-      document.getElementById('level-title').textContent   = meta.title;
-      document.getElementById('level-subtitle').textContent= meta.subtitle;
-      document.getElementById('analysis-text').textContent = parsed.analysis || '';
+      resultCard.className = `card result-card visible ${levelMeta.cls}`;
+      document.getElementById('level-badge').textContent    = level;
+      document.getElementById('level-title').textContent    = levelMeta.title;
+      document.getElementById('level-subtitle').textContent = levelMeta.subtitle;
+      document.getElementById('analysis-text').textContent  = parsed.analysis || '';
 
       const flagsEl   = document.getElementById('flags');
       const flagClass = level === 1 ? 'green' : level === 2 ? 'amber' : 'red';
@@ -314,9 +322,9 @@ The flags array should list specific red flags found (or "No major red flags" if
       });
     } catch (e) {
       showError('Network error. Check your connection.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 </script>
 </body>
