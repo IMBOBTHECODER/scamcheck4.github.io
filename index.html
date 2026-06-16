@@ -212,7 +212,9 @@
   </p>
 </div>
 
-<script>
+<script type="module">
+  import { GoogleGenerativeAI } from 'https://esm.run/@google/generative-ai';
+
   // ─── PUT YOUR API KEY HERE ───────────────────────────────────────────────
   const API_KEY = 'AQ.Ab8RN6KqdY7cFe5OCfHcrnXIK_vUUr-4GMK3Ix19PS3G5xmbnQ';
   // ─────────────────────────────────────────────────────────────────────────
@@ -223,13 +225,32 @@
     3: { title: 'High risk',   subtitle: 'Likely a scam — do not engage',             cls: 'level-3' },
   };
 
-  const btn       = document.getElementById('scan-btn');
-  const btnIcon   = document.getElementById('btn-icon');
-  const spinner   = document.getElementById('spinner');
-  const textarea  = document.getElementById('msg-input');
-  const resultCard= document.getElementById('result-card');
-  const errMsg    = document.getElementById('err-msg');
-  const errText   = document.getElementById('err-text');
+  const systemPrompt = `You are a scam detection expert. Analyze the message and return ONLY a JSON object (no markdown, no preamble) with these fields:
+{
+  "level": 1 | 2 | 3,
+  "analysis": "2-3 sentence explanation of why this danger level was assigned",
+  "flags": ["flag1", "flag2", ...]
+}
+Level guide:
+1 = Low risk: message seems legitimate, no manipulation tactics
+2 = Medium risk: some suspicious elements, urgent language, unusual requests, or mild pressure tactics
+3 = High risk: clear scam indicators — impersonation, fake prizes, requests for money/OTP/passwords, urgent pressure, phishing links
+The flags array should list specific red flags found (or "No major red flags" if level 1). Keep flags short (2-5 words each). Return only valid JSON.`;
+
+  const genAI = new GoogleGenerativeAI(API_KEY);
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash',
+    systemInstruction: systemPrompt,
+    generationConfig: { maxOutputTokens: 500, responseMimeType: 'application/json' },
+  });
+
+  const btn        = document.getElementById('scan-btn');
+  const btnIcon    = document.getElementById('btn-icon');
+  const spinner    = document.getElementById('spinner');
+  const textarea   = document.getElementById('msg-input');
+  const resultCard = document.getElementById('result-card');
+  const errMsg     = document.getElementById('err-msg');
+  const errText    = document.getElementById('err-text');
 
   function showError(msg) { errText.textContent = msg; errMsg.classList.add('visible'); }
   function hideError()    { errMsg.classList.remove('visible'); }
@@ -252,43 +273,9 @@
     setLoading(true);
     resultCard.className = 'card result-card';
 
-    const systemPrompt = `You are a scam detection expert. Analyze the message and return ONLY a JSON object (no markdown, no preamble) with these fields:
-{
-  "level": 1 | 2 | 3,
-  "analysis": "2-3 sentence explanation of why this danger level was assigned",
-  "flags": ["flag1", "flag2", ...]
-}
-Level guide:
-1 = Low risk: message seems legitimate, no manipulation tactics
-2 = Medium risk: some suspicious elements, urgent language, unusual requests, or mild pressure tactics
-3 = High risk: clear scam indicators — impersonation, fake prizes, requests for money/OTP/passwords, urgent pressure, phishing links
-The flags array should list specific red flags found (or "No major red flags" if level 1). Keep flags short (2-5 words each). Return only valid JSON.`;
-
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: systemPrompt }] },
-            contents: [{ role: 'user', parts: [{ text: msg }] }],
-            generationConfig: { maxOutputTokens: 500, responseMimeType: 'application/json' },
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        showError(errData?.error?.message || `API error (${res.status}).`);
-        return;
-      }
-
-      const data = await res.json();
-      if (data.error) { showError(data.error.message || 'API error.'); return; }
-
-      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!raw) { showError('Empty response from API.'); return; }
+      const result = await model.generateContent(msg);
+      const raw = result.response.text();
       let parsed;
       try {
         parsed = JSON.parse(raw);
@@ -297,7 +284,7 @@ The flags array should list specific red flags found (or "No major red flags" if
         return;
       }
 
-      const level    = Math.max(1, Math.min(3, parseInt(parsed.level, 10) || 1));
+      const level     = Math.max(1, Math.min(3, parseInt(parsed.level, 10) || 1));
       const levelMeta = LEVELS[level];
 
       resultCard.className = `card result-card visible ${levelMeta.cls}`;
@@ -316,7 +303,7 @@ The flags array should list specific red flags found (or "No major red flags" if
         flagsEl.appendChild(span);
       });
     } catch (e) {
-      showError('Network error. Check your connection.');
+      showError(e.message || 'Error. Try again.');
     } finally {
       setLoading(false);
     }
