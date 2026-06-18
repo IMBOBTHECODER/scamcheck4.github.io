@@ -1,0 +1,12 @@
+.claude
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.pytest_cache/
+.ruff_cache/
+CLAUDE.md
+
+deploy.ps1
+start_uv.sh

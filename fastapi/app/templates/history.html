@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t.history_heading }}</h1>
+
+{% if not scans %}
+<p>{{ t.no_history }}</p>
+{% else %}
+<form class="clear-form" method="post" action="/history/clear">
+    <button id="clear-history" type="submit">{{ t.clear_history }}</button>
+</form>
+
+{% for s in scans %}
+<div class="result level-{{ s.level }}">
+    <div class="hist-head">
+        <span class="badge">{{ s.label }}</span>
+        {% if s.created_at %}<span class="hist-time">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</span>{% endif %}
+    </div>
+    <p class="hist-message">{{ s.message }}</p>
+
+    {% if s.signals %}
+    <ul class="signals">
+        {% for sig in s.signals %}
+        <li>
+            <strong>{{ sig.dau_hieu }}</strong>
+            {% if sig.doan_trich %}<div class="snippet">“{{ sig.doan_trich }}”</div>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

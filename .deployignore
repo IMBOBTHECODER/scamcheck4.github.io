@@ -1,0 +1,12 @@
+# .deployignore — files/folders excluded from deployment (rsync --exclude)
+# Patterns are relative to the fastapi/ folder being uploaded.
+
+# Python bytecode
+**/__pycache__/
+**/*.pyc
+
+# Server-only virtualenv — never exists locally, must not be deleted by --delete
+app/venv/
+
+# Local env
+.env

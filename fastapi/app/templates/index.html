@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t.index_heading }}</h1>
+<p>{{ t.index_intro }}</p>
+
+<form id="check-form" method="post" action="/">
+    <textarea id="input-text" name="text" rows="6" maxlength="{{ max_length }}"
+        placeholder="{{ t.placeholder }}">{{ submitted or "" }}</textarea>
+    <div class="form-footer">
+        <span id="char-count" class="char-count"></span>
+        <button type="submit">{{ t.check_button }}</button>
+    </div>
+</form>
+
+{% if error %}
+<div class="alert">{{ error }}</div>
+{% endif %}
+
+{% if result %}
+<div class="result level-{{ result.level }}">
+    <span class="badge">{{ result.label }}</span>
+
+    {% if result.signals %}
+    <h3>{{ t.signals_heading }}</h3>
+    <ul class="signals">
+        {% for s in result.signals %}
+        <li>
+            <strong>{{ s.dau_hieu }}</strong>
+            {% if s.doan_trich %}<div class="snippet">“{{ s.doan_trich }}”</div>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="analysis">{{ t.no_signals }}</p>
+    {% endif %}
+
+    {% if result.actions %}
+    <h3>{{ t.actions_heading }}</h3>
+    <ul class="actions">
+        {% for a in result.actions %}
+        <li>{{ a }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endif %}
+
+<script>
+    // First-layer (client-side) length check. The server re-checks the same
+    // limit — this only improves UX, it is not a security control.
+    (function () {
+        var MAX = {{ max_length }};
+        var MSG_EMPTY = {{ t.err_empty|tojson }};
+        var MSG_LONG = {{ t.err_too_long|replace('{max}', max_length|string)|tojson }};
+        var input = document.getElementById("input-text");
+        var count = document.getElementById("char-count");
+        var form = document.getElementById("check-form");
+
+        function render() {
+            var len = input.value.length;
+            count.textContent = len + " / " + MAX;
+            count.classList.toggle("over", len > MAX);
+        }
+
+        input.addEventListener("input", render);
+        render();
+
+        form.addEventListener("submit", function (e) {
+            var text = input.value.trim();
+            if (!text) {
+                e.preventDefault();
+                alert(MSG_EMPTY);
+            } else if (input.value.length > MAX) {
+                e.preventDefault();
+                alert(MSG_LONG);
+            }
+        });
+    })();
+</script>
+{% endblock %}
