@@ -10,3 +10,4 @@ CLAUDE.md
 
 deploy.ps1
 start_uv.sh
+.deployignore

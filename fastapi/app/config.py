@@ -7,7 +7,7 @@ class Settings(BaseSettings):
 
     app_name: str = "Scam Check"
     debug: bool = True
-    gemini_api_key: str = "AQ.Ab8RN6IzR9-85-KYFU5TozhG12_X-RQpuE6a1ZlW8svKmm3XNw"
+    gemini_api_key: str = "AQ.Ab8RN6K1_tH8pz3IU5UhzWt4HYw8hWl352E3LeFQ6FlukMKbhA"
 
     # MySQL connection — REQUIRED (no fallback). Set DATABASE_URL, e.g.
     #   mysql+pymysql://user:pass@127.0.0.1:3306/scamcheck
