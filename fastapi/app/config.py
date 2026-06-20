@@ -7,7 +7,7 @@ class Settings(BaseSettings):
 
     app_name: str = "Scam Check"
     debug: bool = True
-    gemini_api_key: str = "AQ.Ab8RN6JPpQteBg3GjzrVvb2R724_BQzoabY84NTbW3jAqRCOHw"
+    gemini_api_key: str = "AQ.Ab8RN6LxVAB55Tx4fXcTR6xVjZCMKIxZ7Ku4f5JTvyNy4dPuuw"
 
     # MySQL connection — REQUIRED (no fallback). Set DATABASE_URL, e.g.
     #   mysql+pymysql://user:pass@127.0.0.1:3306/scamcheck
@@ -15,6 +15,14 @@ class Settings(BaseSettings):
 
     # Secret for signing the per-device session cookie (override in production).
     session_secret: str = "dev-insecure-change-me"
+
+    # Mark the session cookie Secure (HTTPS-only). Keep False for local http
+    # testing; set True on the server (it is served over HTTPS).
+    session_https_only: bool = False
+
+    # Reject request bodies larger than this (bytes). The only user input is the
+    # 4000-char text field, so 64 KB is generous; blocks oversized-payload abuse.
+    max_request_bytes: int = 64 * 1024
 
 
 settings = Settings()
@@ -81,11 +89,21 @@ Chỉ trả về MỘT cấu trúc JSON duy nhất, tuyệt đối không viết
   "danh_sach_dau_hieu": [
     {
       "dau_hieu": "Mô tả dấu hiệu dựa trên từ khóa/đặc điểm phát hiện được",
-      "doan_trich": "Đoạn văn bản hoặc liên kết chứa dấu hiệu đó"
+      "doan_trich": "Trích NGUYÊN VĂN đoạn chứa dấu hiệu, sao chép y hệt từ <noi_dung>"
     }
   ],
-  "hanh_dong_de_xuat": ["Hành động 1", "Hành động 2"]
+  "hanh_dong_de_xuat": ["Hành động 1", "Hành động 2", "Hành động 3"]
 }
+
+[QUY TẮC VỀ "hanh_dong_de_xuat"]
+- LUÔN đưa ra ÍT NHẤT 3 hành động đề xuất cụ thể, rõ ràng, thiết thực cho người dùng.
+- Kể cả khi kết quả là "An toàn": vẫn đưa ra tối thiểu 3 lời khuyên phòng ngừa hữu ích.
+
+[QUY TẮC BẮT BUỘC VỀ "doan_trich"]
+- "doan_trich" PHẢI là một đoạn con sao chép NGUYÊN VĂN, chính xác từng ký tự, từ nội dung gốc trong <noi_dung> (giữ nguyên chữ hoa/thường, dấu câu, dấu cách, đường dẫn).
+- TUYỆT ĐỐI không diễn giải, không dịch, không rút gọn, không thêm dấu ngoặc hay dấu "..." vào "doan_trich".
+- Mỗi "doan_trich" phải tìm lại được đúng nguyên dạng trong <noi_dung> (để hệ thống tô sáng lại trong văn bản gốc). Nếu không trích được nguyên văn thì để "doan_trich" rỗng "".
+
 Nếu an toàn: "danh_sach_dau_hieu" để rỗng [] và đưa ra hành động trấn an phù hợp.
 """
 

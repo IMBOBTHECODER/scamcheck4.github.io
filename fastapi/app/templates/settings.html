@@ -2,10 +2,12 @@
 {% block content %}
 <h1>{{ t.settings_heading }}</h1>
 
+{# Shown after a successful save (?saved=1) #}
 {% if saved %}
 <div class="notice">{{ t.saved_message }}</div>
 {% endif %}
 
+{# Theme + language — saved to the per-device cookie, not the database #}
 <form class="settings-form" method="post" action="/settings">
     <label>
         <span>{{ t.theme_label }}</span>
@@ -28,6 +30,7 @@
     <button type="submit"><span>{{ t.save_button }}</span></button>
 </form>
 
+{# Read-only system info #}
 <h2>{{ t.specs_heading }}</h2>
 <table class="specs">
     <tr><td>{{ t.version_label }}</td><td>{{ app_version }}</td></tr>

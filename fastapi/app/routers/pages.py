@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup, escape
 from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -35,12 +36,65 @@ def _ctx(request: Request, title: str, **extra) -> dict:
     return context
 
 
+def _highlight(message: str, signals: list) -> Markup:
+    """Return the message as HTML with each flagged snippet wrapped in <mark>.
+
+    Every character of the original text is HTML-escaped; only the <mark> tags
+    we insert are live HTML, so this is safe from XSS. Snippets come from the
+    model's `doan_trich` fields; matching is case-insensitive and best-effort
+    (a snippet the model paraphrased simply won't highlight).
+    """
+    # Ignore degenerate 1–2 char snippets: a short/common needle (or one a user
+    # steered the model into emitting) would otherwise highlight half the text.
+    snippets = [
+        s.get("doan_trich", "").strip()
+        for s in signals
+        if isinstance(s, dict) and len(s.get("doan_trich", "").strip()) >= 3
+    ]
+    if not snippets:
+        return escape(message)
+
+    # Collect every match span, then merge overlaps so nesting can't happen.
+    lowered = message.lower()
+    spans = []
+    for snip in snippets:
+        needle = snip.lower()
+        start = 0
+        while (idx := lowered.find(needle, start)) != -1:
+            spans.append((idx, idx + len(snip)))
+            start = idx + len(snip)
+    if not spans:
+        return escape(message)
+
+    spans.sort()
+    merged = [spans[0]]
+    for s, e in spans[1:]:
+        if s <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], e))
+        else:
+            merged.append((s, e))
+
+    # Rebuild, escaping each segment; wrap the flagged ranges in <mark>.
+    out, cursor = [], 0
+    for s, e in merged:
+        out.append(escape(message[cursor:s]))
+        out.append(Markup('<mark class="flag">'))
+        out.append(escape(message[s:e]))
+        out.append(Markup("</mark>"))
+        cursor = e
+    out.append(escape(message[cursor:]))
+    return Markup("").join(out)
+
+
 def _scan_view(scan: Scan) -> dict:
+    signals = json.loads(scan.signals_json or "[]")
     return {
+        "id": scan.id,
         "level": scan.level,
         "label": scan.label,
         "message": scan.message,
-        "signals": json.loads(scan.signals_json or "[]"),
+        "message_html": _highlight(scan.message, signals),
+        "signals": signals,
         "actions": json.loads(scan.actions_json or "[]"),
         "created_at": scan.created_at,
     }
@@ -66,29 +120,55 @@ def check(request: Request, text: str = Form(""), db: Session = Depends(get_db))
     else:
         try:
             result = check_message(text, language=context["language"])
-            context["result"] = result
         except ScamCheckError as exc:
             context["error"] = str(exc)
         else:
-            # Persisting to history is best-effort: if the DB is down, the user
-            # still sees their result — only the history record is skipped.
+            scan = Scan(
+                device_id=get_device_id(request),
+                message=text,
+                level=result["level"],
+                label=result["label"],
+                signals_json=json.dumps(result["signals"], ensure_ascii=False),
+                actions_json=json.dumps(result["actions"], ensure_ascii=False),
+            )
             try:
-                db.add(
-                    Scan(
-                        device_id=get_device_id(request),
-                        message=text,
-                        level=result["level"],
-                        label=result["label"],
-                        signals_json=json.dumps(result["signals"], ensure_ascii=False),
-                        actions_json=json.dumps(result["actions"], ensure_ascii=False),
-                    )
-                )
+                db.add(scan)
                 db.commit()
+                db.refresh(scan)  # populate scan.id
+                # Post/Redirect/Get: show the result on its own page so a refresh
+                # doesn't re-submit the form.
+                return RedirectResponse(f"/result/{scan.id}", status_code=303)
             except SQLAlchemyError as exc:
                 db.rollback()
-                logger.warning("scan not saved to history — database unavailable: %s", exc)
+                logger.warning("scan not saved — database unavailable: %s", exc)
+                # No id to link to, so fall back to showing the result inline.
+                context["result"] = result
 
     return templates.TemplateResponse("index.html", context)
+
+
+@router.get("/result/{scan_id}", response_class=HTMLResponse)
+def result_page(request: Request, scan_id: int, db: Session = Depends(get_db)):
+    """Dedicated page for one scan's result (reached via redirect after a check)."""
+    device_id = get_device_id(request)
+    try:
+        # Scope by device_id so a device can only see its own results.
+        scan = (
+            db.query(Scan)
+            .filter(Scan.id == scan_id, Scan.device_id == device_id)
+            .first()
+        )
+    except SQLAlchemyError as exc:
+        logger.warning("result lookup failed — database unavailable: %s", exc)
+        scan = None
+
+    if scan is None:
+        # Unknown id, not this device's, or DB down → back to the checker.
+        return RedirectResponse("/", status_code=303)
+
+    return templates.TemplateResponse(
+        "result.html", _ctx(request, "Result", result=_scan_view(scan))
+    )
 
 
 @router.get("/history", response_class=HTMLResponse)

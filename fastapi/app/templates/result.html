@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+{# Dedicated result page — reached after a check via redirect (PRG) #}
+<h1>{{ t.result_heading }}</h1>
+
+<div class="result level-{{ result.level }}">
+    <span class="badge">{{ result.label }}</span>
+
+    {# The analyzed content, with flagged snippets highlighted (message_html is
+       pre-escaped, safe markup built in pages.py — only <mark> tags are live) #}
+    <p class="checked-label">{{ t.checked_content }}</p>
+    <p class="hist-message">{{ result.message_html }}</p>
+
+    {# Detected scam signals, or a reassuring note when there are none #}
+    {% if result.signals %}
+    <h3>{{ t.signals_heading }}</h3>
+    <ul class="signals">
+        {% for s in result.signals %}
+        <li>
+            <strong>{{ s.dau_hieu }}</strong>
+            {% if s.doan_trich %}<div class="snippet">“{{ s.doan_trich }}”</div>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="analysis">{{ t.no_signals }}</p>
+    {% endif %}
+
+    {# Suggested next steps #}
+    {% if result.actions %}
+    <h3>{{ t.actions_heading }}</h3>
+    <ul class="actions">
+        {% for a in result.actions %}
+        <li>{{ a }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+
+{# Back to the checker to run another analysis #}
+<div class="result-actions">
+    <a href="/" class="analyze-again">{{ t.analyze_again }}</a>
+</div>
+{% endblock %}

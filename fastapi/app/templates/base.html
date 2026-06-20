@@ -1,9 +1,11 @@
+{# Page shell every template extends. data-theme/lang come from device prefs. #}
 <!DOCTYPE html>
 <html lang="{{ language }}" data-theme="{{ theme }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
+    {# Fonts: Playfair Display (headings) + Space Grotesk (body) #}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet"
@@ -11,6 +13,7 @@
     <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
 </head>
 <body>
+    {# Top navigation — shared across all pages #}
     <nav>
         <a href="/" class="brand">
             <svg class="brand-icon" xmlns="http://www.w3.org/2000/svg" fill="none"
@@ -25,6 +28,7 @@
         <a href="/history">{{ t.nav_history }}</a>
         <a href="/settings">{{ t.nav_settings }}</a>
     </nav>
+    {# Each page fills this block #}
     <main>
         {% block content %}{% endblock %}
     </main>

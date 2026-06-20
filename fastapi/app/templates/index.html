@@ -1,16 +1,26 @@
 {% extends "base.html" %}
 {% block content %}
+{# Full-screen hero — first thing seen on load #}
 <header class="hero">
     <p class="eyebrow">{{ t.index_eyebrow }}</p>
     <h1>{{ t.index_heading }}</h1>
     <p class="hero-desc">{{ t.index_intro }}</p>
 </header>
 
+{# Input form — posts the text back to "/" to run the scam check #}
 <form id="check-form" method="post" action="/">
+    {# Quick presets — fill the box with example scams so users can try it fast #}
+    <div class="presets">
+        <span class="presets-label">{{ t.presets_label }}</span>
+        <button type="button" class="preset-btn" data-key="bank">{{ t.preset_bank_label }}</button>
+        <button type="button" class="preset-btn" data-key="gov">{{ t.preset_gov_label }}</button>
+        <button type="button" class="preset-btn" data-key="prize">{{ t.preset_prize_label }}</button>
+    </div>
     <textarea id="input-text" name="text" rows="6" maxlength="{{ max_length }}"
         placeholder="{{ t.placeholder }}">{{ submitted or "" }}</textarea>
     <div class="form-footer">
         <span id="char-count" class="char-count"></span>
+        {# Animated "Check" button (sparkle effect) #}
         <div class="sp">
             <button type="submit" class="sparkle-button">
                 <span class="spark"></span>
@@ -34,10 +44,13 @@
     </div>
 </form>
 
+{# Error banner (empty input, too long, or Gemini failure) #}
 {% if error %}
 <div class="alert">{{ error }}</div>
 {% endif %}
 
+{# Verdict card — inline fallback only when the result couldn't be saved (DB down);
+   the normal path redirects to the dedicated /result page #}
 {% if result %}
 <div class="result level-{{ result.level }}">
     <span class="badge">{{ result.label }}</span>
@@ -86,6 +99,20 @@
 
         input.addEventListener("input", render);
         render();
+
+        // Preset example scams — clicking a chip fills the box (for quick testing).
+        var PRESETS = {
+            bank: {{ t.preset_bank_text|tojson }},
+            gov: {{ t.preset_gov_text|tojson }},
+            prize: {{ t.preset_prize_text|tojson }}
+        };
+        Array.prototype.forEach.call(document.querySelectorAll(".preset-btn"), function (btn) {
+            btn.addEventListener("click", function () {
+                input.value = PRESETS[btn.getAttribute("data-key")] || "";
+                render();
+                input.focus();
+            });
+        });
 
         form.addEventListener("submit", function (e) {
             var text = input.value.trim();

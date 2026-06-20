@@ -2,6 +2,7 @@
 {% block content %}
 <h1>{{ t.history_heading }}</h1>
 
+{# Three states: DB down → notice, no scans → empty msg, else → the list #}
 {% if db_error %}
 <div class="alert">{{ t.history_unavailable }}</div>
 {% elif not scans %}
@@ -11,8 +12,9 @@
     <button id="clear-history" type="submit">{{ t.clear_history }}</button>
 </form>
 
+{# One card per past scan (newest first, max 10) — links back to its result page #}
 {% for s in scans %}
-<div class="result level-{{ s.level }}">
+<a class="result level-{{ s.level }} hist-card" href="/result/{{ s.id }}">
     <div class="hist-head">
         <span class="badge">{{ s.label }}</span>
         {% if s.created_at %}<span class="hist-time">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</span>{% endif %}
@@ -29,7 +31,16 @@
         {% endfor %}
     </ul>
     {% endif %}
-</div>
+
+    <span class="hist-view">
+        {{ t.view_details }}
+        {# Heroicons: arrow-right (outline) #}
+        <svg class="hist-view-icon" xmlns="http://www.w3.org/2000/svg" fill="none"
+            viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+        </svg>
+    </span>
+</a>
 {% endfor %}
 {% endif %}
 {% endblock %}
