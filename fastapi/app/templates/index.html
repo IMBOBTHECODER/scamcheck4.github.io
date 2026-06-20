@@ -1,10 +1,10 @@
 {% extends "base.html" %}
+{% from "_badge.html" import verdict_badge %}
 {% block content %}
-{# Full-screen hero — first thing seen on load #}
+{# Compact hero — kept short so the input box is visible without scrolling #}
 <header class="hero">
     <p class="eyebrow">{{ t.index_eyebrow }}</p>
     <h1>{{ t.index_heading }}</h1>
-    <p class="hero-desc">{{ t.index_intro }}</p>
 </header>
 
 {# Input form — posts the text back to "/" to run the scam check #}
@@ -44,6 +44,12 @@
     </div>
 </form>
 
+{# Full-screen loading overlay shown while the server analyzes the input #}
+<div id="loading-overlay" class="loading-overlay" aria-hidden="true">
+    <div class="spinner" role="status"></div>
+    <p class="loading-text">{{ t.analyzing }}</p>
+</div>
+
 {# Error banner (empty input, too long, or Gemini failure) #}
 {% if error %}
 <div class="alert">{{ error }}</div>
@@ -53,7 +59,7 @@
    the normal path redirects to the dedicated /result page #}
 {% if result %}
 <div class="result level-{{ result.level }}">
-    <span class="badge">{{ result.label }}</span>
+    {{ verdict_badge(result.level, result.label) }}
 
     {% if result.signals %}
     <h3>{{ t.signals_heading }}</h3>
@@ -90,6 +96,7 @@
         var input = document.getElementById("input-text");
         var count = document.getElementById("char-count");
         var form = document.getElementById("check-form");
+        var overlay = document.getElementById("loading-overlay");
 
         function render() {
             var len = input.value.length;
@@ -122,7 +129,16 @@
             } else if (input.value.length > MAX) {
                 e.preventDefault();
                 alert(MSG_LONG);
+            } else {
+                // Valid submit → show the loading overlay while the server analyzes.
+                overlay.classList.add("show");
             }
+        });
+
+        // Hide the overlay if the user returns via the browser's back button
+        // (the page may be restored from the bfcache with the overlay visible).
+        window.addEventListener("pageshow", function () {
+            overlay.classList.remove("show");
         });
     })();
 </script>

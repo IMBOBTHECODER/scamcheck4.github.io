@@ -1,6 +1,8 @@
 """HTML page routes (server-rendered via Jinja2)."""
 import json
 import logging
+import time
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -119,7 +121,9 @@ def check(request: Request, text: str = Form(""), db: Session = Depends(get_db))
         context["error"] = t["err_too_long"].format(max=MAX_MESSAGE_LENGTH)
     else:
         try:
+            started = time.perf_counter()
             result = check_message(text, language=context["language"])
+            elapsed_ms = int((time.perf_counter() - started) * 1000)
         except ScamCheckError as exc:
             context["error"] = str(exc)
         else:
@@ -136,8 +140,8 @@ def check(request: Request, text: str = Form(""), db: Session = Depends(get_db))
                 db.commit()
                 db.refresh(scan)  # populate scan.id
                 # Post/Redirect/Get: show the result on its own page so a refresh
-                # doesn't re-submit the form.
-                return RedirectResponse(f"/result/{scan.id}", status_code=303)
+                # doesn't re-submit the form. Pass the analysis time along.
+                return RedirectResponse(f"/result/{scan.id}?ms={elapsed_ms}", status_code=303)
             except SQLAlchemyError as exc:
                 db.rollback()
                 logger.warning("scan not saved — database unavailable: %s", exc)
@@ -148,8 +152,17 @@ def check(request: Request, text: str = Form(""), db: Session = Depends(get_db))
 
 
 @router.get("/result/{scan_id}", response_class=HTMLResponse)
-def result_page(request: Request, scan_id: int, db: Session = Depends(get_db)):
-    """Dedicated page for one scan's result (reached via redirect after a check)."""
+def result_page(
+    request: Request,
+    scan_id: int,
+    ms: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """Dedicated page for one scan's result (reached via redirect after a check).
+
+    `ms` is the analysis time carried over from the check redirect; it is only
+    shown right after a check (revisiting from history has no `ms`).
+    """
     device_id = get_device_id(request)
     try:
         # Scope by device_id so a device can only see its own results.
@@ -166,8 +179,11 @@ def result_page(request: Request, scan_id: int, db: Session = Depends(get_db)):
         # Unknown id, not this device's, or DB down → back to the checker.
         return RedirectResponse("/", status_code=303)
 
+    # Ignore a missing or obviously bogus (spoofed) value — display only.
+    took_ms = ms if (ms is not None and 0 <= ms <= 600000) else None
+
     return templates.TemplateResponse(
-        "result.html", _ctx(request, "Result", result=_scan_view(scan))
+        "result.html", _ctx(request, "Result", result=_scan_view(scan), took_ms=took_ms)
     )
 
 

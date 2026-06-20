@@ -25,6 +25,7 @@ STRINGS = {
         "index_intro": "Dán nội dung vào ô bên dưới — AI sẽ phân tích các dấu hiệu lừa đảo chỉ trong vài giây, nhận diện chiêu trúng thưởng giả, liên kết giả mạo và thủ đoạn hối thúc, rồi giải thích rõ vì sao.",
         "placeholder": "Dán nội dung cần kiểm tra...",
         "check_button": "Kiểm tra",
+        "analyzing": "Đang phân tích...",
         # quick-test presets
         "presets_label": "Thử ví dụ:",
         "preset_bank_label": "Ngân hàng giả",
@@ -42,6 +43,7 @@ STRINGS = {
         "result_heading": "Kết quả phân tích",
         "checked_content": "Nội dung đã kiểm tra",
         "analyze_again": "Phân tích lại",
+        "time_taken": "Thời gian phân tích",
         # settings
         "settings_heading": "Cài đặt",
         "theme_label": "Giao diện",
@@ -74,6 +76,7 @@ STRINGS = {
         "index_intro": "Paste it below and our AI checks it for scam signals in seconds — spotting fake prize claims, phishing links, and pressure tactics, then telling you exactly why.",
         "placeholder": "Paste the content to check...",
         "check_button": "Check",
+        "analyzing": "Analyzing...",
         # quick-test presets
         "presets_label": "Try an example:",
         "preset_bank_label": "Fake bank",
@@ -91,6 +94,7 @@ STRINGS = {
         "result_heading": "Analysis result",
         "checked_content": "Checked content",
         "analyze_again": "Analyze again",
+        "time_taken": "Analysis time",
         "settings_heading": "Settings",
         "theme_label": "Appearance",
         "theme_dark": "Dark",

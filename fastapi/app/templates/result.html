@@ -1,10 +1,24 @@
 {% extends "base.html" %}
+{% from "_badge.html" import verdict_badge %}
 {% block content %}
 {# Dedicated result page — reached after a check via redirect (PRG) #}
 <h1>{{ t.result_heading }}</h1>
 
 <div class="result level-{{ result.level }}">
-    <span class="badge">{{ result.label }}</span>
+    <div class="result-head">
+        {{ verdict_badge(result.level, result.label) }}
+        {# Analysis time — only present right after a check (carried via ?ms=) #}
+        {% if took_ms is not none %}
+        <span class="result-time">
+            {# Heroicons: clock (outline) #}
+            <svg class="result-time-icon" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+            {{ t.time_taken }}: {{ '%.1f'|format(took_ms / 1000) }}s
+        </span>
+        {% endif %}
+    </div>
 
     {# The analyzed content, with flagged snippets highlighted (message_html is
        pre-escaped, safe markup built in pages.py — only <mark> tags are live) #}

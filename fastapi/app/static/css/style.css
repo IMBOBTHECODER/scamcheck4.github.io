@@ -55,12 +55,25 @@ body {
     margin: 0;
     min-height: 100vh;
     font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
+    font-size: 1.06rem;          /* slightly larger base text for readability */
     background:
         radial-gradient(900px circle at 50% -15%, var(--glow), transparent 55%),
         var(--bg);
     background-attachment: fixed;
     color: var(--fg);
-    line-height: 1.6;
+    line-height: 1.65;
+}
+
+/* Clear keyboard-focus outline (helps low-vision and keyboard users) */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.preset-btn:focus-visible,
+.hist-card:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
 }
 
 nav {
@@ -194,6 +207,45 @@ button:not(.sparkle-button):active { transform: translateY(1px); }
     width: 100%;
 }
 
+/* Loading overlay shown while a check is being analyzed */
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.loading-overlay.show { display: flex; }
+
+.spinner {
+    width: 54px;
+    height: 54px;
+    border: 4px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+    margin: 0;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner { animation-duration: 2s; }
+}
+
 .char-count {
     font-size: 0.85rem;
     color: var(--muted);
@@ -235,15 +287,22 @@ button:not(.sparkle-button):active { transform: translateY(1px); }
 }
 
 .result .badge {
-    display: inline-block;
-    padding: 0.25rem 0.7rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 1rem;
     border-radius: 999px;
-    font-size: 0.78rem;
+    font-size: 1.05rem;        /* larger, easier to read */
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.01em;
     color: #fff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.badge-icon {
+    width: 1.3em;
+    height: 1.3em;
+    flex-shrink: 0;
 }
 
 .result.level-1 { border-left-color: #3fb950; }
@@ -257,34 +316,58 @@ button:not(.sparkle-button):active { transform: translateY(1px); }
 
 .result .analysis {
     margin: 0.85rem 0 0;
+    font-size: 1.05rem;
 }
 
 .result h3 {
-    margin: 1.1rem 0 0.4rem;
-    font-size: 0.95rem;
-    opacity: 0.8;
+    margin: 1.3rem 0 0.5rem;
+    font-size: 1.1rem;          /* clearer section headings */
+    opacity: 0.95;
 }
 
 .result ul.signals,
 .result ul.actions {
     margin: 0;
-    padding-left: 1.2rem;
+    padding-left: 1.3rem;
     color: var(--fg);
+    font-size: 1.05rem;         /* larger list text for readability */
+    line-height: 1.65;
 }
 
 .result ul.signals li,
 .result ul.actions li {
-    margin: 0.35rem 0;
+    margin: 0.5rem 0;
 }
 
 .result .snippet {
-    margin-top: 0.2rem;
-    font-size: 0.9rem;
+    margin-top: 0.25rem;
+    font-size: 0.98rem;
     font-style: italic;
     color: var(--muted);
 }
 
 /* ── Result page ───────────────────────────────────────────────────────── */
+/* Badge + analysis-time row at the top of the result card */
+.result-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+}
+
+.result-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.result-time-icon {
+    width: 1rem;
+    height: 1rem;
+}
+
 /* Flagged/dangerous snippets highlighted inside the analyzed content */
 mark.flag {
     background: rgba(248, 81, 73, 0.28);
@@ -404,6 +487,8 @@ h2 { margin-top: 2.2rem; }
 
 .hist-message {
     margin: 0.7rem 0 0;
+    font-size: 1.05rem;
+    line-height: 1.65;
     white-space: pre-wrap;
     word-break: break-word;
 }
@@ -446,13 +531,12 @@ table.specs td:first-child {
     margin-top: -2rem;                 /* cancel main's top padding */
     margin-left: calc(50% - 50vw);     /* exact full-bleed even with padding */
     margin-right: calc(50% - 50vw);
-    margin-bottom: 3rem;
-    padding: 2rem clamp(1.5rem, 6vw, 4rem) 3rem;
-    min-height: calc(100vh - 60px);    /* viewport minus the sticky nav */
+    margin-bottom: 2rem;
+    /* Compact band — not full-height, so the input box shows without scrolling */
+    padding: clamp(1.75rem, 5vh, 2.75rem) clamp(1.5rem, 6vw, 4rem);
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     text-align: center;
     border-bottom: 1px solid var(--border);
     background:
@@ -484,24 +568,16 @@ table.specs td:first-child {
 }
 
 .hero h1 {
-    margin: 0 0 1.25rem;
+    margin: 0;
     font-family: "Playfair Display", Georgia, serif;
-    font-size: clamp(2.8rem, 7vw, 4.6rem);
+    font-size: clamp(2.2rem, 5.5vw, 3.4rem);
     font-weight: 700;
-    line-height: 1.08;
+    line-height: 1.1;
     letter-spacing: -0.015em;
     background: linear-gradient(120deg, var(--fg) 35%, var(--accent));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-}
-
-.hero-desc {
-    margin: 0 auto;
-    max-width: 56ch;
-    font-size: clamp(1.05rem, 1.6vw, 1.25rem);
-    line-height: 1.6;
-    color: var(--muted);
 }
 
 /* ── Footer ────────────────────────────────────────────────────────────── */
