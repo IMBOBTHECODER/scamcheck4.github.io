@@ -7,7 +7,7 @@ class Settings(BaseSettings):
 
     app_name: str = "Scam Check"
     debug: bool = True
-    gemini_api_key: str = "AQ.Ab8RN6K1_tH8pz3IU5UhzWt4HYw8hWl352E3LeFQ6FlukMKbhA"
+    gemini_api_key: str = "AQ.Ab8RN6JPpQteBg3GjzrVvb2R724_BQzoabY84NTbW3jAqRCOHw"
 
     # MySQL connection — REQUIRED (no fallback). Set DATABASE_URL, e.g.
     #   mysql+pymysql://user:pass@127.0.0.1:3306/scamcheck
@@ -88,3 +88,22 @@ Chỉ trả về MỘT cấu trúc JSON duy nhất, tuyệt đối không viết
 }
 Nếu an toàn: "danh_sach_dau_hieu" để rỗng [] và đưa ra hành động trấn an phù hợp.
 """
+
+
+# Per-language directive appended to the system prompt. The JSON *keys* never
+# change; only the human-readable VALUES (signal descriptions, suggested actions,
+# and the muc_do_rui_ro label) are written in the chosen language.
+OUTPUT_LANGUAGE_DIRECTIVE = {
+    "vi": (
+        "Viết toàn bộ phần văn bản cho người đọc (mô tả trong 'dau_hieu', các "
+        "'hanh_dong_de_xuat', và nhãn 'muc_do_rui_ro' — phải là một trong: "
+        "An toàn | Cảnh báo | Nguy hiểm) bằng TIẾNG VIỆT. Giữ nguyên các khóa JSON. "
+        "'doan_trich' giữ nguyên trích đoạn gốc từ nội dung."
+    ),
+    "en": (
+        "Write ALL human-readable text (the 'dau_hieu' descriptions, the "
+        "'hanh_dong_de_xuat' actions, and the 'muc_do_rui_ro' label — which must be "
+        "one of: Safe | Warning | Danger) in ENGLISH. Keep every JSON key exactly as "
+        "specified. 'doan_trich' must stay as the original quoted snippet from the input."
+    ),
+}

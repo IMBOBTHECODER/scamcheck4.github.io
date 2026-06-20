@@ -1,10 +1,12 @@
 """HTML page routes (server-rendered via Jinja2)."""
 import json
+import logging
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import desc
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from config import APP_VERSION, AVAILABLE_LANGUAGES
@@ -16,6 +18,7 @@ from services.scam_check import MAX_MESSAGE_LENGTH, ScamCheckError, check_messag
 
 router = APIRouter(tags=["pages"])
 templates = Jinja2Templates(directory="templates")
+logger = logging.getLogger("scamcheck.pages")
 
 
 def _ctx(request: Request, title: str, **extra) -> dict:
@@ -62,21 +65,28 @@ def check(request: Request, text: str = Form(""), db: Session = Depends(get_db))
         context["error"] = t["err_too_long"].format(max=MAX_MESSAGE_LENGTH)
     else:
         try:
-            result = check_message(text)
+            result = check_message(text, language=context["language"])
             context["result"] = result
-            db.add(
-                Scan(
-                    device_id=get_device_id(request),
-                    message=text,
-                    level=result["level"],
-                    label=result["label"],
-                    signals_json=json.dumps(result["signals"], ensure_ascii=False),
-                    actions_json=json.dumps(result["actions"], ensure_ascii=False),
-                )
-            )
-            db.commit()
         except ScamCheckError as exc:
             context["error"] = str(exc)
+        else:
+            # Persisting to history is best-effort: if the DB is down, the user
+            # still sees their result — only the history record is skipped.
+            try:
+                db.add(
+                    Scan(
+                        device_id=get_device_id(request),
+                        message=text,
+                        level=result["level"],
+                        label=result["label"],
+                        signals_json=json.dumps(result["signals"], ensure_ascii=False),
+                        actions_json=json.dumps(result["actions"], ensure_ascii=False),
+                    )
+                )
+                db.commit()
+            except SQLAlchemyError as exc:
+                db.rollback()
+                logger.warning("scan not saved to history — database unavailable: %s", exc)
 
     return templates.TemplateResponse("index.html", context)
 
@@ -84,22 +94,34 @@ def check(request: Request, text: str = Form(""), db: Session = Depends(get_db))
 @router.get("/history", response_class=HTMLResponse)
 def history(request: Request, db: Session = Depends(get_db)):
     device_id = get_device_id(request)
-    scans = (
-        db.query(Scan)
-        .filter(Scan.device_id == device_id)
-        .order_by(desc(Scan.created_at))
-        .limit(100)
-        .all()
-    )
+    try:
+        scans = (
+            db.query(Scan)
+            .filter(Scan.device_id == device_id)
+            .order_by(desc(Scan.created_at))
+            .limit(10)
+            .all()
+        )
+        views = [_scan_view(s) for s in scans]
+        db_error = False
+    except SQLAlchemyError as exc:
+        # DB down: show the page with an "unavailable" notice instead of a 500.
+        logger.warning("history query failed — database unavailable: %s", exc)
+        views, db_error = [], True
     return templates.TemplateResponse(
-        "history.html", _ctx(request, "History", scans=[_scan_view(s) for s in scans])
+        "history.html",
+        _ctx(request, "History", scans=views, db_error=db_error),
     )
 
 
 @router.post("/history/clear")
 def clear_history(request: Request, db: Session = Depends(get_db)):
-    db.query(Scan).filter(Scan.device_id == get_device_id(request)).delete()
-    db.commit()
+    try:
+        db.query(Scan).filter(Scan.device_id == get_device_id(request)).delete()
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.warning("clear history failed — database unavailable: %s", exc)
     return RedirectResponse("/history", status_code=303)
 
 

@@ -2,7 +2,9 @@
 {% block content %}
 <h1>{{ t.history_heading }}</h1>
 
-{% if not scans %}
+{% if db_error %}
+<div class="alert">{{ t.history_unavailable }}</div>
+{% elif not scans %}
 <p>{{ t.no_history }}</p>
 {% else %}
 <form class="clear-form" method="post" action="/history/clear">

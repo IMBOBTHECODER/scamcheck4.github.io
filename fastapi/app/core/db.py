@@ -2,10 +2,15 @@
 
 MySQL via SQLAlchemy; the connection URL comes from config (DATABASE_URL).
 """
+import logging
+
 from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from config import settings
+
+logger = logging.getLogger("scamcheck.db")
 
 engine = create_engine(
     settings.database_url,
@@ -27,7 +32,17 @@ def get_db():
         db.close()
 
 
-def init_db() -> None:
-    """Create tables if they don't exist (simple bootstrap; no migrations)."""
+def init_db() -> bool:
+    """Create tables if they don't exist (simple bootstrap; no migrations).
+
+    Returns True on success. If the database is unreachable (e.g. MySQL down
+    or out of connections) this logs a warning and returns False instead of
+    raising, so the app can still boot and serve DB-independent pages.
+    """
     import models  # noqa: F401 — register models on Base before create_all
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+        return True
+    except SQLAlchemyError as exc:
+        logger.warning("init_db skipped — database unavailable: %s", exc)
+        return False

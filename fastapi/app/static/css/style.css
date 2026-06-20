@@ -2,9 +2,12 @@
     --bg: #0f1117;
     --fg: #e6e6e6;
     --accent: #6c8cff;
+    --accent-2: #a06bff;
     --surface: #1a1d27;
     --border: #2a2e3a;
     --muted: rgba(230, 230, 230, 0.6);
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    --glow: rgba(108, 140, 255, 0.18);
 }
 
 /* Explicit theme overrides (chosen on the settings page) */
@@ -21,9 +24,12 @@
     --bg: #f6f7f9;
     --fg: #1a1a1a;
     --accent: #3b5bdb;
+    --accent-2: #7c3aed;
     --surface: #ffffff;
     --border: #d9dbe2;
     --muted: rgba(0, 0, 0, 0.55);
+    --shadow: 0 10px 30px rgba(20, 30, 80, 0.10);
+    --glow: rgba(59, 91, 219, 0.16);
 }
 
 /* "Auto" follows the OS preference */
@@ -32,35 +38,72 @@
         --bg: #f6f7f9;
         --fg: #1a1a1a;
         --accent: #3b5bdb;
+        --accent-2: #7c3aed;
         --surface: #ffffff;
         --border: #d9dbe2;
         --muted: rgba(0, 0, 0, 0.55);
+        --shadow: 0 10px 30px rgba(20, 30, 80, 0.10);
+        --glow: rgba(59, 91, 219, 0.16);
     }
 }
 
 * { box-sizing: border-box; }
 
+html { overflow-x: hidden; }  /* full-bleed hero uses 100vw; clip scrollbar-width overhang */
+
 body {
     margin: 0;
-    font-family: system-ui, -apple-system, sans-serif;
-    background: var(--bg);
+    min-height: 100vh;
+    font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
+    background:
+        radial-gradient(900px circle at 50% -15%, var(--glow), transparent 55%),
+        var(--bg);
+    background-attachment: fixed;
     color: var(--fg);
     line-height: 1.6;
 }
 
 nav {
     display: flex;
+    align-items: center;
     gap: 1.5rem;
-    padding: 1rem 2rem;
+    padding: 0.9rem 2rem;
     border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(12px);
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
 }
 
 nav a {
-    color: var(--accent);
+    color: var(--muted);
     text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: color 0.15s ease;
 }
 
-nav a:hover { text-decoration: underline; }
+nav a:hover { color: var(--fg); text-decoration: none; }
+
+nav .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--fg);
+    letter-spacing: -0.01em;
+}
+
+nav .brand-icon {
+    width: 1.35rem;
+    height: 1.35rem;
+    color: var(--accent);
+}
+
+nav .nav-spacer { flex: 1; }
 
 main {
     max-width: 760px;
@@ -89,9 +132,12 @@ textarea {
 textarea:focus {
     outline: none;
     border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--glow);
 }
 
-button {
+/* Generic button (Save, Clear, etc.). The special homepage Check button uses
+   .sparkle-button (see bottom of file) and opts out of these rules via :not(). */
+button:not(.sparkle-button) {
     padding: 0.6rem 1.4rem;
     font: inherit;
     font-weight: 600;
@@ -100,14 +146,16 @@ button {
     border: none;
     border-radius: 8px;
     cursor: pointer;
+    transition: background 0.15s ease, transform 0.12s ease;
 }
 
-button:hover { opacity: 0.9; }
+button:not(.sparkle-button):hover { background: var(--accent-2); }
+button:not(.sparkle-button):active { transform: translateY(1px); }
 
 .form-footer {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 2rem;
     width: 100%;
 }
 
@@ -147,16 +195,20 @@ button:hover { opacity: 0.9; }
     background: var(--surface);
     border: 1px solid var(--border);
     border-left: 4px solid var(--accent);
-    border-radius: 8px;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
 }
 
 .result .badge {
     display: inline-block;
     padding: 0.25rem 0.7rem;
     border-radius: 999px;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
     color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 .result.level-1 { border-left-color: #3fb950; }
@@ -254,6 +306,12 @@ h2 { margin-top: 2.2rem; }
     border: 1px solid var(--border);
 }
 
+#clear-history:hover {
+    background: transparent;
+    color: var(--fg);
+    border-color: var(--accent);
+}
+
 table.specs {
     margin-top: 0.6rem;
     border-collapse: collapse;
@@ -269,4 +327,414 @@ table.specs td {
 table.specs td:first-child {
     color: var(--muted);
     width: 45%;
+}
+
+/* ── Homepage hero header ──────────────────────────────────────────────── */
+/* Full-bleed: break out of main's 760px column to span the whole viewport,
+   and fill the screen height so it's the first thing seen on load. */
+.hero {
+    margin-top: -2rem;                 /* cancel main's top padding */
+    margin-left: calc(50% - 50vw);     /* exact full-bleed even with padding */
+    margin-right: calc(50% - 50vw);
+    margin-bottom: 3rem;
+    padding: 2rem clamp(1.5rem, 6vw, 4rem) 3rem;
+    min-height: calc(100vh - 60px);    /* viewport minus the sticky nav */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background:
+        radial-gradient(800px circle at 50% 30%, var(--glow), transparent 60%),
+        radial-gradient(600px circle at 85% 80%,
+            color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 55%),
+        color-mix(in srgb, var(--surface) 35%, transparent);
+}
+
+/* Keep the copy in a readable centered column inside the wide section */
+.hero > * {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.hero .eyebrow {
+    margin: 0 0 1.25rem;
+    display: inline-block;
+    padding: 0.3rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.hero h1 {
+    margin: 0 0 1.25rem;
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: clamp(2.8rem, 7vw, 4.6rem);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    background: linear-gradient(120deg, var(--fg) 35%, var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.hero-desc {
+    margin: 0 auto;
+    max-width: 56ch;
+    font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+    line-height: 1.6;
+    color: var(--muted);
+}
+
+/* ── Footer ────────────────────────────────────────────────────────────── */
+footer {
+    max-width: 760px;
+    margin: 3rem auto 0;
+    padding: 1.2rem 2rem 2rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    text-align: center;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Special homepage "Check" button — sparkle button (Uiverse.io by JkHuger).
+   The original ships with JS that randomises the particle positions and a few
+   container vars; since we don't load that JS, the vars (--transition/--spark/
+   --cut) are set here and the particles are scattered via :nth-of-type below.
+   ════════════════════════════════════════════════════════════════════════ */
+.sp {
+    --transition: 0.25s;
+    --spark: 1.8s;
+    --cut: 0.08em;
+    position: relative;
+    display: inline-block;
+}
+
+.sparkle-button {
+  --active: 0;
+  --bg: radial-gradient(
+            40% 50% at center 100%,
+            hsl(270 calc(var(--active) * 97%) 72% / var(--active)),
+            transparent
+        ),
+        radial-gradient(
+            80% 100% at center 120%,
+            hsl(260 calc(var(--active) * 97%) 70% / var(--active)),
+            transparent
+        ),
+        hsl(260 calc(var(--active) * 97%) calc((var(--active) * 44%) + 12%));
+  background: var(--bg);
+  font-family: inherit;
+  font-size: 1.2rem;
+  font-weight: 500;
+  border: 0;
+  cursor: pointer;
+  padding: 0.55em 1.1em;
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  white-space: nowrap;
+  border-radius: 100px;
+  position: relative;
+  box-shadow: 0 0 calc(var(--active) * 3em) calc(var(--active) * 1em) hsl(260 97% 61% / 0.75),
+        0 0em 0 0 hsl(260 calc(var(--active) * 97%) calc((var(--active) * 50%) + 30%)) inset,
+        0 -0.05em 0 0 hsl(260 calc(var(--active) * 97%) calc(var(--active) * 60%)) inset;
+  transition: box-shadow var(--transition), scale var(--transition), background var(--transition);
+  scale: calc(1 + (var(--active) * 0.1));
+  transition: .3s;
+}
+
+.sparkle-button:active {
+  scale: 1;
+  transition: .3s;
+}
+
+.sparkle path {
+  color: hsl(0 0% calc((var(--active, 0) * 70%) + var(--base)));
+  transform-box: fill-box;
+  transform-origin: center;
+  fill: currentColor;
+  stroke: currentColor;
+  animation-delay: calc((var(--transition) * 1.5) + (var(--delay) * 1s));
+  animation-duration: 0.6s;
+  transition: color var(--transition);
+}
+
+.sparkle-button:is(:hover, :focus-visible) path {
+  animation-name: bounce;
+}
+
+@keyframes bounce {
+  35%, 65% {
+    scale: var(--scale);
+  }
+}
+
+.sparkle path:nth-of-type(1) {
+  --scale: 0.5;
+  --delay: 0.1;
+  --base: 40%;
+}
+
+.sparkle path:nth-of-type(2) {
+  --scale: 1.5;
+  --delay: 0.2;
+  --base: 20%;
+}
+
+.sparkle path:nth-of-type(3) {
+  --scale: 2.5;
+  --delay: 0.35;
+  --base: 30%;
+}
+
+.sparkle-button:before {
+  content: "";
+  position: absolute;
+  inset: -0.2em;
+  z-index: -1;
+  border: 0.25em solid hsl(260 97% 50% / 0.5);
+  border-radius: 100px;
+  opacity: var(--active, 0);
+  transition: opacity var(--transition);
+}
+
+.spark {
+  position: absolute;
+  inset: 0;
+  border-radius: 100px;
+  rotate: 0deg;
+  overflow: hidden;
+  mask: linear-gradient(white, transparent 50%);
+  animation: flip calc(var(--spark) * 2) infinite steps(2, end);
+}
+
+@keyframes flip {
+  to {
+    rotate: 360deg;
+  }
+}
+
+.spark:before {
+  content: "";
+  position: absolute;
+  width: 200%;
+  aspect-ratio: 1;
+  top: 0%;
+  left: 50%;
+  z-index: -1;
+  translate: -50% -15%;
+  rotate: 0;
+  transform: rotate(-90deg);
+  opacity: calc((var(--active)) + 0.4);
+  background: conic-gradient(
+        from 0deg,
+        transparent 0 340deg,
+        white 360deg
+    );
+  transition: opacity var(--transition);
+  animation: rotate var(--spark) linear infinite both;
+}
+
+.spark:after {
+  content: "";
+  position: absolute;
+  inset: var(--cut);
+  border-radius: 100px;
+}
+
+.backdrop {
+  position: absolute;
+  inset: var(--cut);
+  background: var(--bg);
+  border-radius: 100px;
+  transition: background var(--transition);
+}
+
+@keyframes rotate {
+  to {
+    transform: rotate(90deg);
+  }
+}
+
+@supports(selector(:has(:is(+ *)))) {
+  body:has(.sparkle-button:is(:hover, :focus-visible)) {
+    --active: 1;
+    --play-state: running;
+  }
+
+  .bodydrop {
+    display: none;
+  }
+}
+
+.sparkle-button:is(:hover, :focus-visible) ~ :is(.bodydrop, .particle-pen) {
+  --active: 1;
+  --play-state: running;
+}
+
+.sparkle-button:is(:hover, :focus-visible) {
+  --active: 1;
+  --play-state: running;
+}
+
+.particle-pen {
+  position: absolute;
+  width: 200%;
+  aspect-ratio: 1;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  -webkit-mask: radial-gradient(white, transparent 65%);
+  mask: radial-gradient(white, transparent 65%);
+  z-index: -1;
+  opacity: var(--active, 0);
+  transition: opacity var(--transition);
+}
+
+.particle {
+  fill: white;
+  width: calc(var(--size, 0.25) * 1rem);
+  aspect-ratio: 1;
+  position: absolute;
+  top: calc(var(--y) * 1%);
+  left: calc(var(--x) * 1%);
+  opacity: var(--alpha, 1);
+  animation: float-out calc(var(--duration, 1) * 1s) calc(var(--delay) * -1s) infinite linear;
+  transform-origin: var(--origin-x, 1000%) var(--origin-y, 1000%);
+  z-index: -1;
+  animation-play-state: var(--play-state, paused);
+}
+
+.particle path {
+  fill: hsl(0 0% 90%);
+  stroke: none;
+}
+
+.particle:nth-of-type(even) {
+  animation-direction: reverse;
+}
+
+@keyframes float-out {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* Scatter the particles (the original randomises these via JS) */
+.particle:nth-of-type(1)  { --x: 5;  --y: 20; --size: 0.4;  --delay: 0.2; --duration: 2.2; }
+.particle:nth-of-type(2)  { --x: 18; --y: 72; --size: 0.25; --delay: 1.1; --duration: 1.8; }
+.particle:nth-of-type(3)  { --x: 30; --y: 10; --size: 0.5;  --delay: 0.6; --duration: 2.6; }
+.particle:nth-of-type(4)  { --x: 42; --y: 86; --size: 0.3;  --delay: 1.4; --duration: 2.0; }
+.particle:nth-of-type(5)  { --x: 55; --y: 30; --size: 0.45; --delay: 0.3; --duration: 2.4; }
+.particle:nth-of-type(6)  { --x: 68; --y: 76; --size: 0.25; --delay: 0.9; --duration: 1.7; }
+.particle:nth-of-type(7)  { --x: 80; --y: 18; --size: 0.5;  --delay: 1.6; --duration: 2.8; }
+.particle:nth-of-type(8)  { --x: 92; --y: 60; --size: 0.3;  --delay: 0.5; --duration: 2.1; }
+.particle:nth-of-type(9)  { --x: 10; --y: 50; --size: 0.35; --delay: 1.2; --duration: 2.3; }
+.particle:nth-of-type(10) { --x: 25; --y: 90; --size: 0.25; --delay: 0.7; --duration: 1.9; }
+.particle:nth-of-type(11) { --x: 38; --y: 40; --size: 0.5;  --delay: 1.5; --duration: 2.7; }
+.particle:nth-of-type(12) { --x: 50; --y: 5;  --size: 0.3;  --delay: 0.4; --duration: 2.0; }
+.particle:nth-of-type(13) { --x: 63; --y: 55; --size: 0.45; --delay: 1.0; --duration: 2.5; }
+.particle:nth-of-type(14) { --x: 75; --y: 95; --size: 0.25; --delay: 0.8; --duration: 1.6; }
+.particle:nth-of-type(15) { --x: 88; --y: 35; --size: 0.4;  --delay: 1.3; --duration: 2.2; }
+.particle:nth-of-type(16) { --x: 15; --y: 82; --size: 0.3;  --delay: 0.6; --duration: 2.4; }
+.particle:nth-of-type(17) { --x: 33; --y: 65; --size: 0.5;  --delay: 1.7; --duration: 2.9; }
+.particle:nth-of-type(18) { --x: 48; --y: 22; --size: 0.25; --delay: 0.2; --duration: 1.8; }
+.particle:nth-of-type(19) { --x: 70; --y: 45; --size: 0.4;  --delay: 1.1; --duration: 2.3; }
+.particle:nth-of-type(20) { --x: 85; --y: 78; --size: 0.35; --delay: 0.9; --duration: 2.0; }
+
+.text {
+  translate: 2% -6%;
+  letter-spacing: 0.01ch;
+  background: linear-gradient(90deg, hsl(0 0% calc((var(--active) * 100%) + 65%)), hsl(0 0% calc((var(--active) * 100%) + 26%)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: background var(--transition);
+}
+
+.sparkle-button svg {
+  inline-size: 1.25em;
+  translate: -25% -5%;
+}
+
+/* ── Light-theme variant ───────────────────────────────────────────────────
+   At rest: a near-white pill with a lavender border + soft shadow (instead of
+   the near-black base). On hover it still blooms into the purple gradient/glow,
+   so the white shimmer + particles read fine. */
+[data-theme="light"] .sparkle-button,
+[data-theme="light"] .backdrop {
+  --bg: radial-gradient(
+            40% 50% at center 100%,
+            hsl(270 calc(var(--active) * 97%) 72% / var(--active)),
+            transparent
+        ),
+        radial-gradient(
+            80% 100% at center 120%,
+            hsl(260 calc(var(--active) * 97%) 70% / var(--active)),
+            transparent
+        ),
+        hsl(260 calc(var(--active) * 60%) calc(96% - (var(--active) * 40%)));
+}
+
+[data-theme="light"] .sparkle-button {
+  box-shadow:
+        0 0 calc(var(--active) * 3em) calc(var(--active) * 1em) hsl(260 97% 61% / 0.5),
+        0 0 0 1px hsl(260 35% 82% / calc(1 - var(--active))),
+        0 2px 6px hsl(260 30% 55% / calc(0.25 * (1 - var(--active))));
+}
+
+/* Darker text at rest so it stays legible on the white pill */
+[data-theme="light"] .text {
+  background: linear-gradient(
+        90deg,
+        hsl(260 30% calc(45% - (var(--active) * 45%))),
+        hsl(260 35% calc(25% - (var(--active) * 25%)))
+    );
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+@media (prefers-color-scheme: light) {
+  [data-theme="auto"] .sparkle-button,
+  [data-theme="auto"] .backdrop {
+    --bg: radial-gradient(
+            40% 50% at center 100%,
+            hsl(270 calc(var(--active) * 97%) 72% / var(--active)),
+            transparent
+        ),
+        radial-gradient(
+            80% 100% at center 120%,
+            hsl(260 calc(var(--active) * 97%) 70% / var(--active)),
+            transparent
+        ),
+        hsl(260 calc(var(--active) * 60%) calc(96% - (var(--active) * 40%)));
+  }
+
+  [data-theme="auto"] .sparkle-button {
+    box-shadow:
+        0 0 calc(var(--active) * 3em) calc(var(--active) * 1em) hsl(260 97% 61% / 0.5),
+        0 0 0 1px hsl(260 35% 82% / calc(1 - var(--active))),
+        0 2px 6px hsl(260 30% 55% / calc(0.25 * (1 - var(--active))));
+  }
+
+  [data-theme="auto"] .text {
+    background: linear-gradient(
+        90deg,
+        hsl(260 30% calc(45% - (var(--active) * 45%))),
+        hsl(260 35% calc(25% - (var(--active) * 25%)))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
 }

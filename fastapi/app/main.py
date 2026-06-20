@@ -18,7 +18,10 @@ _SESSION_MAX_AGE = 60 * 60 * 24 * 365
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()  # create tables on startup
+    # Best-effort table bootstrap. init_db() never raises on a DB outage — it
+    # logs and returns False — so the site still boots and serves pages that
+    # don't need the database (home, settings). History degrades gracefully.
+    init_db()
     yield
 
 

@@ -10,7 +10,7 @@ from typing import Optional
 from google import genai
 from google.genai import types
 
-from config import SCAM_CHECK_PROMPT, settings
+from config import OUTPUT_LANGUAGE_DIRECTIVE, SCAM_CHECK_PROMPT, settings
 
 # Fallback model if the caller doesn't pass one (per-user model overrides it).
 MODEL_NAME = "gemini-2.5-flash"
@@ -18,9 +18,14 @@ MODEL_NAME = "gemini-2.5-flash"
 # Cap input length: keeps latency/token cost bounded and blocks abuse.
 MAX_MESSAGE_LENGTH = 4000
 
-# Stable risk code -> display level (for CSS colour) and fallback Vietnamese label.
+# Stable risk code -> display level (for CSS colour).
 RISK_LEVELS = {"SAFE": 1, "WARNING": 2, "DANGER": 3}
-RISK_LABELS = {"SAFE": "An toàn", "WARNING": "Cảnh báo", "DANGER": "Nguy hiểm"}
+
+# Fallback labels per language, used only if the model omits muc_do_rui_ro.
+RISK_LABELS = {
+    "vi": {"SAFE": "An toàn", "WARNING": "Cảnh báo", "DANGER": "Nguy hiểm"},
+    "en": {"SAFE": "Safe", "WARNING": "Warning", "DANGER": "Danger"},
+}
 
 
 class ScamCheckError(Exception):
@@ -40,7 +45,7 @@ def _get_client() -> genai.Client:
     return _client
 
 
-def _parse(text: str) -> dict:
+def _parse(text: str, language: str = "vi") -> dict:
     """Pull a validated verdict out of the model's (already JSON) reply."""
     match = re.search(r"\{.*\}", text or "", flags=re.DOTALL)
     if not match:
@@ -53,7 +58,8 @@ def _parse(text: str) -> dict:
     if code not in RISK_LEVELS:
         code = "WARNING"
     level = RISK_LEVELS[code]
-    label = str(data.get("muc_do_rui_ro", "")).strip() or RISK_LABELS[code]
+    labels = RISK_LABELS.get(language, RISK_LABELS["vi"])
+    label = str(data.get("muc_do_rui_ro", "")).strip() or labels[code]
 
     raw_signals = data.get("danh_sach_dau_hieu", [])
     if not isinstance(raw_signals, list):
@@ -80,21 +86,28 @@ def _parse(text: str) -> dict:
     }
 
 
-def check_message(message: str) -> dict:
+def check_message(message: str, language: str = "vi") -> dict:
     """Send `message` to Gemini and return {level, label, signals, actions}.
 
-    Raises ScamCheckError (with a user-safe message) on any failure.
+    `language` ("vi"/"en") controls the language of the human-readable verdict
+    text. Raises ScamCheckError (with a user-safe message) on any failure.
     """
     # The prompt is the system instruction; the text to analyze goes in contents,
     # wrapped in <noi_dung> so the model treats it strictly as data.
     content = f"<noi_dung>\n{message}\n</noi_dung>"
+
+    # Append the output-language directive so the verdict matches the UI language.
+    directive = OUTPUT_LANGUAGE_DIRECTIVE.get(
+        language, OUTPUT_LANGUAGE_DIRECTIVE["vi"]
+    )
+    system_instruction = f"{SCAM_CHECK_PROMPT}\n\n[NGÔN NGỮ TRẢ VỀ / OUTPUT LANGUAGE]\n{directive}"
 
     try:
         response = _get_client().models.generate_content(
             model=MODEL_NAME,
             contents=content,
             config=types.GenerateContentConfig(
-                system_instruction=SCAM_CHECK_PROMPT,
+                system_instruction=system_instruction,
                 temperature=0.1,
                 response_mime_type="application/json",
             ),
@@ -107,7 +120,7 @@ def check_message(message: str) -> dict:
         ) from exc
 
     try:
-        return _parse(response.text or "")
+        return _parse(response.text or "", language)
     except json.JSONDecodeError as exc:
         raise ScamCheckError(
             "The analysis service returned an unreadable response."

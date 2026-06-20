@@ -17,9 +17,11 @@ STRINGS = {
         "history_heading": "Lịch sử kiểm tra",
         "no_history": "Chưa có lượt kiểm tra nào.",
         "clear_history": "Xóa lịch sử",
+        "history_unavailable": "Không thể tải lịch sử ngay lúc này (mất kết nối cơ sở dữ liệu). Vui lòng thử lại sau.",
         # home / checker
-        "index_heading": "Kiểm tra lừa đảo",
-        "index_intro": "Dán một tin nhắn hoặc đường dẫn bên dưới để kiểm tra.",
+        "index_eyebrow": "Phát hiện lừa đảo bằng AI",
+        "index_heading": "Nhận được tin nhắn hay đường dẫn đáng ngờ?",
+        "index_intro": "Dán nội dung vào ô bên dưới — AI sẽ phân tích các dấu hiệu lừa đảo chỉ trong vài giây, nhận diện chiêu trúng thưởng giả, liên kết giả mạo và thủ đoạn hối thúc, rồi giải thích rõ vì sao.",
         "placeholder": "Dán nội dung cần kiểm tra...",
         "check_button": "Kiểm tra",
         "signals_heading": "Dấu hiệu",
@@ -42,6 +44,8 @@ STRINGS = {
         "version_label": "Phiên bản",
         "max_length_label": "Độ dài tối đa (ký tự)",
         "language_name": "Ngôn ngữ",
+        # footer
+        "footer_text": "ScamCheck là công cụ giáo dục do nhóm học viên phát triển và không thay thế cảnh báo chính thức từ ngân hàng hoặc cơ quan chức năng.",
     },
     "en": {
         "nav_home": "Home",
@@ -50,8 +54,10 @@ STRINGS = {
         "history_heading": "Check history",
         "no_history": "No checks yet.",
         "clear_history": "Clear history",
-        "index_heading": "Scam Check",
-        "index_intro": "Paste a message or link below to check it.",
+        "history_unavailable": "History can't be loaded right now (database connection lost). Please try again later.",
+        "index_eyebrow": "AI-powered scam detection",
+        "index_heading": "Got a suspicious email or link?",
+        "index_intro": "Paste it below and our AI checks it for scam signals in seconds — spotting fake prize claims, phishing links, and pressure tactics, then telling you exactly why.",
         "placeholder": "Paste the content to check...",
         "check_button": "Check",
         "signals_heading": "Indicators",
@@ -73,6 +79,8 @@ STRINGS = {
         "version_label": "Version",
         "max_length_label": "Max length (characters)",
         "language_name": "Language",
+        # footer
+        "footer_text": "ScamCheck is an educational tool built by students and is not a substitute for official warnings from banks or authorities.",
     },
 }
 
