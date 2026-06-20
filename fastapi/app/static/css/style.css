@@ -200,6 +200,36 @@ button:not(.sparkle-button):active { transform: translateY(1px); }
 
 .preset-btn:active { transform: translateY(1px); }
 
+.back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    color: var(--fg);
+    background: color-mix(in srgb, var(--surface) 86%, var(--accent));
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+    transition: border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.back-button:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    text-decoration: none;
+}
+
+.back-button:active { transform: translateY(1px); }
+
+.back-button svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    flex: 0 0 auto;
+}
+
 .form-footer {
     display: flex;
     align-items: center;
@@ -392,21 +422,6 @@ mark.flag {
 .result-actions {
     margin-top: 1.5rem;
 }
-
-/* "Analyze again" — a link styled like the primary button */
-.analyze-again {
-    display: inline-block;
-    padding: 0.6rem 1.4rem;
-    font-weight: 600;
-    color: #fff;
-    background: var(--accent);
-    border-radius: 8px;
-    text-decoration: none;
-    transition: background 0.15s ease, transform 0.12s ease;
-}
-
-.analyze-again:hover { background: var(--accent-2); text-decoration: none; }
-.analyze-again:active { transform: translateY(1px); }
 
 /* ── Settings page ─────────────────────────────────────────────────────── */
 .settings-form {

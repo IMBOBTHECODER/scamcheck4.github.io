@@ -51,8 +51,14 @@
     {% endif %}
 </div>
 
-{# Back to the checker to run another analysis #}
+{# Back to the checker #}
 <div class="result-actions">
-    <a href="/" class="analyze-again">{{ t.analyze_again }}</a>
+    <a href="/" class="back-button" aria-label="{{ t.back_button }}">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M19 12H5m0 0 6-6m-6 6 6 6" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>{{ t.back_button }}</span>
+    </a>
 </div>
 {% endblock %}

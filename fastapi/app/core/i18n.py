@@ -26,6 +26,7 @@ STRINGS = {
         "placeholder": "Dán nội dung cần kiểm tra...",
         "check_button": "Kiểm tra",
         "analyzing": "Đang phân tích...",
+        "back_button": "Trở lại",
         # quick-test presets
         "presets_label": "Thử ví dụ:",
         "preset_bank_label": "Ngân hàng giả",
@@ -42,7 +43,7 @@ STRINGS = {
         # result page
         "result_heading": "Kết quả phân tích",
         "checked_content": "Nội dung đã kiểm tra",
-        "analyze_again": "Phân tích lại",
+        "analyze_again": "Trở lại",
         "time_taken": "Thời gian phân tích",
         # settings
         "settings_heading": "Cài đặt",
@@ -77,6 +78,7 @@ STRINGS = {
         "placeholder": "Paste the content to check...",
         "check_button": "Check",
         "analyzing": "Analyzing...",
+        "back_button": "Back",
         # quick-test presets
         "presets_label": "Try an example:",
         "preset_bank_label": "Fake bank",
@@ -93,7 +95,7 @@ STRINGS = {
         # result page
         "result_heading": "Analysis result",
         "checked_content": "Checked content",
-        "analyze_again": "Analyze again",
+        "analyze_again": "Back",
         "time_taken": "Analysis time",
         "settings_heading": "Settings",
         "theme_label": "Appearance",
