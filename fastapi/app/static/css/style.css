@@ -121,7 +121,7 @@ nav .nav-spacer { flex: 1; }
 main {
     max-width: 760px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 1.25rem 2rem 2rem;
 }
 
 form {
@@ -148,9 +148,34 @@ textarea:focus {
     box-shadow: 0 0 0 3px var(--glow);
 }
 
+.input-area {
+    width: 100%;
+}
+
+.home-header,
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.home-header h1,
+.page-header h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 5vw, 2.55rem);
+    line-height: 1.05;
+}
+
+.home-header h1 {
+    font-weight: 800;
+}
+
 /* Generic button (Save, Clear, etc.). The special homepage Check button uses
    .sparkle-button (see bottom of file) and opts out of these rules via :not(). */
-button:not(.sparkle-button) {
+button:not(.sparkle-button):not(.preset-btn):not(.info-button):not(.text-tool-btn) {
     padding: 0.6rem 1.4rem;
     font: inherit;
     font-weight: 600;
@@ -162,8 +187,8 @@ button:not(.sparkle-button) {
     transition: background 0.15s ease, transform 0.12s ease;
 }
 
-button:not(.sparkle-button):hover { background: var(--accent-2); }
-button:not(.sparkle-button):active { transform: translateY(1px); }
+button:not(.sparkle-button):not(.preset-btn):not(.info-button):not(.text-tool-btn):hover { background: var(--accent-2); }
+button:not(.sparkle-button):not(.preset-btn):not(.info-button):not(.text-tool-btn):active { transform: translateY(1px); }
 
 /* Quick-test preset chips above the textarea */
 .presets {
@@ -179,6 +204,94 @@ button:not(.sparkle-button):active { transform: translateY(1px); }
     color: var(--muted);
     margin-right: 0.15rem;
 }
+
+.info-popover {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.info-button {
+    min-height: 2.3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.75rem;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.info-button:hover,
+.info-button[aria-expanded="true"] {
+    color: var(--fg);
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    border-color: var(--accent);
+}
+
+.info-button svg {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+}
+
+.info-panel {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    right: 0;
+    z-index: 20;
+    width: min(21rem, calc(100vw - 4rem));
+    padding: 1rem;
+    color: var(--fg);
+    background: color-mix(in srgb, var(--surface) 96%, var(--bg));
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+.info-panel[hidden] { display: none; }
+
+.info-panel::before {
+    content: "";
+    position: absolute;
+    top: -0.42rem;
+    right: 0.52rem;
+    width: 0.8rem;
+    height: 0.8rem;
+    background: inherit;
+    border-left: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+    transform: rotate(45deg);
+}
+
+.info-panel h2 {
+    margin: 0 0 0.45rem;
+    font-size: 1rem;
+    line-height: 1.25;
+}
+
+.info-panel p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.info-panel ol {
+    margin: 0.75rem 0 0;
+    padding-left: 1.2rem;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.info-panel li + li { margin-top: 0.4rem; }
 
 .preset-btn {
     padding: 0.35rem 0.85rem;
@@ -233,8 +346,85 @@ button:not(.sparkle-button):active { transform: translateY(1px); }
 .form-footer {
     display: flex;
     align-items: center;
-    gap: 2rem;
+    gap: 1rem;
     width: 100%;
+    flex-wrap: wrap;
+}
+
+.text-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-right: auto;
+}
+
+.text-tool-btn {
+    padding: 0;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+    transition: color 0.15s ease;
+}
+
+.text-tool-btn:hover,
+.text-tool-btn:focus-visible {
+    color: var(--accent);
+}
+
+.toast {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 1100;
+    max-width: min(24rem, calc(100vw - 2rem));
+    padding: 0.75rem 0.9rem;
+    color: var(--fg);
+    background: color-mix(in srgb, var(--surface) 94%, var(--bg));
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.toast[hidden] { display: none; }
+
+.toast.success { border-color: rgba(63, 185, 80, 0.7); }
+.toast.error { border-color: rgba(248, 81, 73, 0.75); }
+.toast.notice { border-color: var(--accent); }
+
+.action-toast {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.toast-form {
+    display: block;
+    margin: 0;
+}
+
+.toast-action {
+    padding: 0;
+    color: var(--accent);
+    background: transparent;
+    border: none;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+}
+
+.toast-action:hover,
+.toast-action:focus-visible {
+    color: var(--fg);
 }
 
 /* Loading overlay shown while a check is being analyzed */
@@ -508,7 +698,10 @@ h2 { margin-top: 2.2rem; }
     word-break: break-word;
 }
 
-.clear-form { margin-bottom: 1.2rem; }
+.clear-form {
+    display: block;
+    margin: 0;
+}
 
 #clear-history {
     background: transparent;
@@ -520,6 +713,30 @@ h2 { margin-top: 2.2rem; }
     background: transparent;
     color: var(--fg);
     border-color: var(--accent);
+}
+
+@media (max-width: 560px) {
+    .home-header,
+    .page-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .info-button {
+        white-space: normal;
+        text-align: left;
+    }
+
+    .info-panel {
+        right: auto;
+        left: 0;
+        width: min(21rem, calc(100vw - 4rem));
+    }
+
+    .info-panel::before {
+        right: auto;
+        left: 1rem;
+    }
 }
 
 table.specs {
@@ -769,7 +986,7 @@ footer {
 }
 
 @supports(selector(:has(:is(+ *)))) {
-  body:has(.sparkle-button:is(:hover, :focus-visible)) {
+  body:has(.sparkle-button:not(.is-empty):is(:hover, :focus-visible)) {
     --active: 1;
     --play-state: running;
   }
@@ -779,14 +996,43 @@ footer {
   }
 }
 
-.sparkle-button:is(:hover, :focus-visible) ~ :is(.bodydrop, .particle-pen) {
+.sparkle-button:not(.is-empty):is(:hover, :focus-visible) ~ :is(.bodydrop, .particle-pen) {
   --active: 1;
   --play-state: running;
 }
 
-.sparkle-button:is(:hover, :focus-visible) {
+.sparkle-button:not(.is-empty):is(:hover, :focus-visible) {
   --active: 1;
   --play-state: running;
+}
+
+.sparkle-button.is-empty,
+.sparkle-button.is-empty:is(:hover, :focus-visible),
+.sparkle-button.is-empty ~ :is(.bodydrop, .particle-pen) {
+  --active: 0;
+  --play-state: paused;
+}
+
+.sparkle-button.is-empty {
+  cursor: default;
+  filter: grayscale(1);
+  opacity: 0.62;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 90%, var(--fg) 10%);
+  scale: 1;
+}
+
+.sparkle-button.is-empty:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--surface) 82%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 90%, var(--fg) 10%);
+}
+
+.sparkle-button.is-empty .backdrop {
+  background: color-mix(in srgb, var(--surface) 82%, var(--border));
+}
+
+.sparkle-button.is-empty .spark,
+.sparkle-button.is-empty .particle-pen {
+  display: none;
 }
 
 .particle-pen {

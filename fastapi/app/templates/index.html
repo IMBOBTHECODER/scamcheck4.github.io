@@ -1,10 +1,28 @@
 {% extends "base.html" %}
 {% from "_badge.html" import verdict_badge %}
 {% block content %}
-{# Compact hero — kept short so the input box is visible without scrolling #}
-<header class="hero">
-    <p class="eyebrow">{{ t.index_eyebrow }}</p>
-    <h1>{{ t.index_heading }}</h1>
+<header class="home-header">
+    <h1>ScamCheck</h1>
+    <div class="info-popover">
+        <button type="button" class="info-button" aria-expanded="false" aria-controls="presets-info"
+            aria-label="{{ t.info_button_label }}">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
+                <path d="M12 10.75v5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <path d="M12 7.5h.01" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+            </svg>
+            <span>{{ t.guide_button_text }}</span>
+        </button>
+        <div id="presets-info" class="info-panel" role="dialog" aria-label="{{ t.info_title }}" hidden>
+            <h2>{{ t.info_title }}</h2>
+            <p>{{ t.info_body }}</p>
+            <ol>
+                <li>{{ t.info_step_paste }}</li>
+                <li>{{ t.info_step_check }}</li>
+                <li>{{ t.info_step_review }}</li>
+            </ol>
+        </div>
+    </div>
 </header>
 
 {# Input form — posts the text back to "/" to run the scam check #}
@@ -16,10 +34,16 @@
         <button type="button" class="preset-btn" data-key="gov">{{ t.preset_gov_label }}</button>
         <button type="button" class="preset-btn" data-key="prize">{{ t.preset_prize_label }}</button>
     </div>
-    <textarea id="input-text" name="text" rows="6" maxlength="{{ max_length }}"
-        placeholder="{{ t.placeholder }}">{{ submitted or "" }}</textarea>
+    <div class="input-area">
+        <textarea id="input-text" name="text" rows="6" maxlength="{{ max_length }}"
+            placeholder="{{ t.placeholder }}">{{ submitted or "" }}</textarea>
+    </div>
     <div class="form-footer">
         <span id="char-count" class="char-count"></span>
+        <div class="text-tools">
+            <button type="button" id="clear-text" class="text-tool-btn">{{ t.clear_text_button }}</button>
+            <button type="button" id="paste-text" class="text-tool-btn">{{ t.paste_button }}</button>
+        </div>
         {% if result %}
         <a href="/" class="back-button" aria-label="{{ t.back_button }}">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -31,7 +55,7 @@
         {% else %}
         {# Animated "Check" button (sparkle effect) #}
         <div class="sp">
-            <button type="submit" class="sparkle-button">
+            <button type="submit" class="sparkle-button is-empty" aria-disabled="true">
                 <span class="spark"></span>
                 <span class="backdrop"></span>
                 <svg class="sparkle" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -59,6 +83,7 @@
     <div class="spinner" role="status"></div>
     <p class="loading-text">{{ t.analyzing }}</p>
 </div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 {# Error banner (empty input, too long, or Gemini failure) #}
 {% if error %}
@@ -103,15 +128,48 @@
         var MAX = {{ max_length }};
         var MSG_EMPTY = {{ t.err_empty|tojson }};
         var MSG_LONG = {{ t.err_too_long|replace('{max}', max_length|string)|tojson }};
+        var MSG_CLIPBOARD_PROMPT = {{ t.clipboard_prompt|tojson }};
+        var MSG_CLIPBOARD_SUCCESS = {{ t.clipboard_success|tojson }};
+        var MSG_CLIPBOARD_DENIED = {{ t.clipboard_denied|tojson }};
+        var MSG_WORD_LIMIT = {{ t.word_limit_toast|replace('{max}', max_length|string)|tojson }};
         var input = document.getElementById("input-text");
         var count = document.getElementById("char-count");
         var form = document.getElementById("check-form");
         var overlay = document.getElementById("loading-overlay");
+        var toast = document.getElementById("toast");
+        var infoButton = document.querySelector(".info-button");
+        var infoPanel = document.getElementById("presets-info");
+        var clearButton = document.getElementById("clear-text");
+        var pasteButton = document.getElementById("paste-text");
+        var submitButton = document.querySelector(".sparkle-button");
+        var wordLimitShown = input.value.length >= MAX;
 
         function render() {
             var len = input.value.length;
             count.textContent = len + " / " + MAX;
             count.classList.toggle("over", len > MAX);
+            if (submitButton) {
+                var empty = input.value.trim().length === 0;
+                submitButton.classList.toggle("is-empty", empty);
+                submitButton.setAttribute("aria-disabled", empty ? "true" : "false");
+            }
+            if (len >= MAX && !wordLimitShown) {
+                showToast(MSG_WORD_LIMIT, "notice");
+                wordLimitShown = true;
+            } else if (len < MAX) {
+                wordLimitShown = false;
+            }
+        }
+
+        var toastTimer;
+        function showToast(message, tone) {
+            window.clearTimeout(toastTimer);
+            toast.textContent = message;
+            toast.className = "toast" + (tone ? " " + tone : "");
+            toast.hidden = false;
+            toastTimer = window.setTimeout(function () {
+                toast.hidden = true;
+            }, 3600);
         }
 
         input.addEventListener("input", render);
@@ -129,6 +187,55 @@
                 render();
                 input.focus();
             });
+        });
+
+        clearButton.addEventListener("click", function () {
+            input.value = "";
+            render();
+            input.focus();
+        });
+
+        pasteButton.addEventListener("click", function () {
+            if (!navigator.clipboard || !navigator.clipboard.readText) {
+                input.focus();
+                document.execCommand("paste");
+                render();
+                showToast(MSG_CLIPBOARD_DENIED, "error");
+                return;
+            }
+
+            showToast(MSG_CLIPBOARD_PROMPT, "notice");
+            navigator.clipboard.readText().then(function (text) {
+                input.value = text.slice(0, MAX);
+                render();
+                input.focus();
+                showToast(MSG_CLIPBOARD_SUCCESS, "success");
+            }).catch(function () {
+                input.focus();
+                showToast(MSG_CLIPBOARD_DENIED, "error");
+            });
+        });
+
+        function setInfoOpen(open) {
+            infoPanel.hidden = !open;
+            infoButton.setAttribute("aria-expanded", open ? "true" : "false");
+        }
+
+        infoButton.addEventListener("click", function () {
+            setInfoOpen(infoPanel.hidden);
+        });
+
+        document.addEventListener("click", function (e) {
+            if (!infoPanel.hidden && !e.target.closest(".info-popover")) {
+                setInfoOpen(false);
+            }
+        });
+
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape" && !infoPanel.hidden) {
+                setInfoOpen(false);
+                infoButton.focus();
+            }
         });
 
         form.addEventListener("submit", function (e) {

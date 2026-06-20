@@ -22,6 +22,19 @@ from services.scam_check import MAX_MESSAGE_LENGTH, ScamCheckError, check_messag
 router = APIRouter(tags=["pages"])
 templates = Jinja2Templates(directory="templates")
 logger = logging.getLogger("scamcheck.pages")
+_CLEARED_HISTORY = {}
+_UNDO_TTL_SECONDS = 10 * 60
+
+
+def _prune_cleared_history():
+    now = time.time()
+    expired = [
+        device_id
+        for device_id, payload in _CLEARED_HISTORY.items()
+        if now - payload["saved_at"] > _UNDO_TTL_SECONDS
+    ]
+    for device_id in expired:
+        _CLEARED_HISTORY.pop(device_id, None)
 
 
 def _ctx(request: Request, title: str, **extra) -> dict:
@@ -105,7 +118,7 @@ def _scan_view(scan: Scan) -> dict:
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return templates.TemplateResponse(
-        "index.html", _ctx(request, "Home", max_length=MAX_MESSAGE_LENGTH)
+        request, "index.html", _ctx(request, "Home", max_length=MAX_MESSAGE_LENGTH)
     )
 
 
@@ -148,7 +161,7 @@ def check(request: Request, text: str = Form(""), db: Session = Depends(get_db))
                 # No id to link to, so fall back to showing the result inline.
                 context["result"] = result
 
-    return templates.TemplateResponse("index.html", context)
+    return templates.TemplateResponse(request, "index.html", context)
 
 
 @router.get("/result/{scan_id}", response_class=HTMLResponse)
@@ -183,12 +196,20 @@ def result_page(
     took_ms = ms if (ms is not None and 0 <= ms <= 600000) else None
 
     return templates.TemplateResponse(
-        "result.html", _ctx(request, "Result", result=_scan_view(scan), took_ms=took_ms)
+        request,
+        "result.html",
+        _ctx(request, "Result", result=_scan_view(scan), took_ms=took_ms),
     )
 
 
 @router.get("/history", response_class=HTMLResponse)
-def history(request: Request, db: Session = Depends(get_db)):
+def history(
+    request: Request,
+    cleared: bool = False,
+    restored: bool = False,
+    db: Session = Depends(get_db),
+):
+    _prune_cleared_history()
     device_id = get_device_id(request)
     try:
         scans = (
@@ -205,25 +226,85 @@ def history(request: Request, db: Session = Depends(get_db)):
         logger.warning("history query failed — database unavailable: %s", exc)
         views, db_error = [], True
     return templates.TemplateResponse(
+        request,
         "history.html",
-        _ctx(request, "History", scans=views, db_error=db_error),
+        _ctx(
+            request,
+            "History",
+            scans=views,
+            db_error=db_error,
+            cleared=cleared,
+            restored=restored,
+            can_restore=device_id in _CLEARED_HISTORY,
+        ),
     )
 
 
 @router.post("/history/clear")
 def clear_history(request: Request, db: Session = Depends(get_db)):
+    device_id = get_device_id(request)
     try:
-        db.query(Scan).filter(Scan.device_id == get_device_id(request)).delete()
+        scans = (
+            db.query(Scan)
+            .filter(Scan.device_id == device_id)
+            .order_by(Scan.created_at)
+            .all()
+        )
+        _CLEARED_HISTORY[device_id] = {
+            "saved_at": time.time(),
+            "scans": [
+                {
+                    "message": scan.message,
+                    "level": scan.level,
+                    "label": scan.label,
+                    "signals_json": scan.signals_json,
+                    "actions_json": scan.actions_json,
+                    "created_at": scan.created_at,
+                }
+                for scan in scans
+            ],
+        }
+        db.query(Scan).filter(Scan.device_id == device_id).delete()
         db.commit()
     except SQLAlchemyError as exc:
         db.rollback()
         logger.warning("clear history failed — database unavailable: %s", exc)
+        return RedirectResponse("/history", status_code=303)
+    return RedirectResponse("/history?cleared=1", status_code=303)
+
+
+@router.post("/history/restore")
+def restore_history(request: Request, db: Session = Depends(get_db)):
+    _prune_cleared_history()
+    device_id = get_device_id(request)
+    payload = _CLEARED_HISTORY.pop(device_id, None)
+    if payload:
+        try:
+            db.add_all([
+                Scan(
+                    device_id=device_id,
+                    message=scan["message"],
+                    level=scan["level"],
+                    label=scan["label"],
+                    signals_json=scan["signals_json"],
+                    actions_json=scan["actions_json"],
+                    created_at=scan["created_at"],
+                )
+                for scan in payload["scans"]
+            ])
+            db.commit()
+            return RedirectResponse("/history?restored=1", status_code=303)
+        except SQLAlchemyError as exc:
+            db.rollback()
+            _CLEARED_HISTORY[device_id] = payload
+            logger.warning("restore history failed — database unavailable: %s", exc)
     return RedirectResponse("/history", status_code=303)
 
 
 @router.get("/settings", response_class=HTMLResponse)
 def settings_page(request: Request, saved: bool = False):
     return templates.TemplateResponse(
+        request,
         "settings.html",
         _ctx(
             request,

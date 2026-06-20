@@ -1,7 +1,27 @@
 {% extends "base.html" %}
 {% from "_badge.html" import verdict_badge %}
 {% block content %}
-<h1>{{ t.history_heading }}</h1>
+<header class="page-header">
+    <h1>{{ t.history_heading }}</h1>
+    {% if scans %}
+    <form class="clear-form" method="post" action="/history/clear">
+        <button id="clear-history" type="submit">{{ t.clear_history }}</button>
+    </form>
+    {% endif %}
+</header>
+
+{% if cleared and can_restore %}
+<div class="toast success action-toast" role="status" aria-live="polite">
+    <span>{{ t.history_deleted_toast }}</span>
+    <form class="toast-form" method="post" action="/history/restore">
+        <button type="submit" class="toast-action">{{ t.undo_button }}</button>
+    </form>
+</div>
+{% elif restored %}
+<div class="toast success" role="status" aria-live="polite">
+    {{ t.history_restored_toast }}
+</div>
+{% endif %}
 
 {# Three states: DB down → notice, no scans → empty msg, else → the list #}
 {% if db_error %}
@@ -9,10 +29,6 @@
 {% elif not scans %}
 <p>{{ t.no_history }}</p>
 {% else %}
-<form class="clear-form" method="post" action="/history/clear">
-    <button id="clear-history" type="submit">{{ t.clear_history }}</button>
-</form>
-
 {# One card per past scan (newest first, max 10) — links back to its result page #}
 {% for s in scans %}
 <a class="result level-{{ s.level }} hist-card" href="/result/{{ s.id }}">
