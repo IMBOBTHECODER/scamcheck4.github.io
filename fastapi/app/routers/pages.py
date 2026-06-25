@@ -4,7 +4,7 @@ import logging
 import time
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
@@ -12,12 +12,17 @@ from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from config import APP_VERSION, AVAILABLE_LANGUAGES
+from config import APP_VERSION, AVAILABLE_LANGUAGES, settings
 from core import i18n, prefs
 from core.db import get_db
 from core.device import get_device_id
 from models import Scan
-from services.scam_check import MAX_MESSAGE_LENGTH, ScamCheckError, check_message
+from services.scam_check import (
+    MAX_MESSAGE_LENGTH,
+    ScamCheckError,
+    check_message,
+    get_rescue_guidance,
+)
 
 router = APIRouter(tags=["pages"])
 templates = Jinja2Templates(directory="templates")
@@ -104,13 +109,21 @@ def _highlight(message: str, signals: list) -> Markup:
 def _scan_view(scan: Scan) -> dict:
     signals = json.loads(scan.signals_json or "[]")
     return {
-        "id": scan.id,
+        "id": scan.public_id,
         "level": scan.level,
         "label": scan.label,
         "message": scan.message,
         "message_html": _highlight(scan.message, signals),
         "signals": signals,
         "actions": json.loads(scan.actions_json or "[]"),
+        # Only surfaced for Warning/Danger (see result.html); "" otherwise.
+        "psych_note": (scan.psych_note or "") if scan.level >= 2 else "",
+        # "Người ứng cứu" guidance, if it was generated for this scan.
+        "rescue": (
+            json.loads(scan.rescue_json)
+            if (scan.level >= 2 and (scan.rescue_json or "").strip())
+            else None
+        ),
         "created_at": scan.created_at,
     }
 
@@ -123,38 +136,77 @@ def home(request: Request):
 
 
 @router.post("/", response_class=HTMLResponse)
-def check(request: Request, text: str = Form(""), db: Session = Depends(get_db)):
+def check(
+    request: Request,
+    text: str = Form(""),
+    image: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+):
     text = text.strip()
     context = _ctx(request, "Home", submitted=text, max_length=MAX_MESSAGE_LENGTH)
     t = context["t"]
 
-    if not text:
+    # Optional image upload (a screenshot of the suspicious message). Validated
+    # for type and size; the model reads the text out of it.
+    image_bytes = None
+    image_mime = None
+    if image is not None and image.filename:
+        mime = (image.content_type or "").lower()
+        data = image.file.read()
+        if not mime.startswith("image/"):
+            context["error"] = t["err_image_type"]
+        elif data and len(data) > settings.max_image_bytes:
+            context["error"] = t["err_image_large"].format(
+                max=settings.max_image_bytes // (1024 * 1024)
+            )
+        elif data:
+            image_bytes, image_mime = data, mime
+
+    if context.get("error"):
+        return templates.TemplateResponse(request, "index.html", context)
+
+    if not text and not image_bytes:
         context["error"] = t["err_empty"]
     elif len(text) > MAX_MESSAGE_LENGTH:
         context["error"] = t["err_too_long"].format(max=MAX_MESSAGE_LENGTH)
     else:
         try:
             started = time.perf_counter()
-            result = check_message(text, language=context["language"])
+            result = check_message(
+                text,
+                language=context["language"],
+                image_bytes=image_bytes,
+                image_mime=image_mime,
+            )
             elapsed_ms = int((time.perf_counter() - started) * 1000)
         except ScamCheckError as exc:
             context["error"] = str(exc)
         else:
+            # For an image upload, store the text the model read from it (so the
+            # result page and history show real content and snippets highlight).
+            stored_message = text
+            if image_bytes:
+                stored_message = (
+                    result.get("extracted_text", "").strip()
+                    or text
+                    or t["image_message_placeholder"]
+                )
             scan = Scan(
                 device_id=get_device_id(request),
-                message=text,
+                message=stored_message,
                 level=result["level"],
                 label=result["label"],
                 signals_json=json.dumps(result["signals"], ensure_ascii=False),
                 actions_json=json.dumps(result["actions"], ensure_ascii=False),
+                psych_note=result.get("psych_note", ""),
             )
             try:
                 db.add(scan)
                 db.commit()
-                db.refresh(scan)  # populate scan.id
+                db.refresh(scan)  # populate scan.public_id
                 # Post/Redirect/Get: show the result on its own page so a refresh
                 # doesn't re-submit the form. Pass the analysis time along.
-                return RedirectResponse(f"/result/{scan.id}?ms={elapsed_ms}", status_code=303)
+                return RedirectResponse(f"/result/{scan.public_id}?ms={elapsed_ms}", status_code=303)
             except SQLAlchemyError as exc:
                 db.rollback()
                 logger.warning("scan not saved — database unavailable: %s", exc)
@@ -164,11 +216,25 @@ def check(request: Request, text: str = Form(""), db: Session = Depends(get_db))
     return templates.TemplateResponse(request, "index.html", context)
 
 
-@router.get("/result/{scan_id}", response_class=HTMLResponse)
+def _find_scan(db: Session, public_id: str, device_id: str):
+    """Device-scoped lookup by opaque id; None on miss or DB outage."""
+    try:
+        return (
+            db.query(Scan)
+            .filter(Scan.public_id == public_id, Scan.device_id == device_id)
+            .first()
+        )
+    except SQLAlchemyError as exc:
+        logger.warning("result lookup failed — database unavailable: %s", exc)
+        return None
+
+
+@router.get("/result/{public_id}", response_class=HTMLResponse)
 def result_page(
     request: Request,
-    scan_id: int,
+    public_id: str,
     ms: Optional[int] = None,
+    help_error: bool = False,
     db: Session = Depends(get_db),
 ):
     """Dedicated page for one scan's result (reached via redirect after a check).
@@ -177,17 +243,7 @@ def result_page(
     shown right after a check (revisiting from history has no `ms`).
     """
     device_id = get_device_id(request)
-    try:
-        # Scope by device_id so a device can only see its own results.
-        scan = (
-            db.query(Scan)
-            .filter(Scan.id == scan_id, Scan.device_id == device_id)
-            .first()
-        )
-    except SQLAlchemyError as exc:
-        logger.warning("result lookup failed — database unavailable: %s", exc)
-        scan = None
-
+    scan = _find_scan(db, public_id, device_id)
     if scan is None:
         # Unknown id, not this device's, or DB down → back to the checker.
         return RedirectResponse("/", status_code=303)
@@ -198,8 +254,44 @@ def result_page(
     return templates.TemplateResponse(
         request,
         "result.html",
-        _ctx(request, "Result", result=_scan_view(scan), took_ms=took_ms),
+        _ctx(
+            request,
+            "Result",
+            result=_scan_view(scan),
+            took_ms=took_ms,
+            help_error=help_error,
+        ),
     )
+
+
+@router.post("/result/{public_id}/help")
+def result_help(request: Request, public_id: str, db: Session = Depends(get_db)):
+    """Generate 'Người ứng cứu' guidance for a scan the user says they acted on.
+
+    A second, on-demand Gemini call. The result is persisted on the scan so it
+    survives reloads and is generated at most once.
+    """
+    device_id = get_device_id(request)
+    scan = _find_scan(db, public_id, device_id)
+    if scan is None:
+        return RedirectResponse("/", status_code=303)
+
+    # Generate only once, and only for Warning/Danger results.
+    if scan.level >= 2 and not (scan.rescue_json or "").strip():
+        language = prefs.get_prefs(request)["language"]
+        try:
+            guidance = get_rescue_guidance(scan.message, language=language)
+            scan.rescue_json = json.dumps(guidance, ensure_ascii=False)
+            db.commit()
+        except ScamCheckError as exc:
+            logger.warning("rescue guidance failed: %s", exc)
+            return RedirectResponse(f"/result/{public_id}?help_error=1", status_code=303)
+        except SQLAlchemyError as exc:
+            db.rollback()
+            logger.warning("rescue not saved — database unavailable: %s", exc)
+            return RedirectResponse(f"/result/{public_id}?help_error=1", status_code=303)
+
+    return RedirectResponse(f"/result/{public_id}", status_code=303)
 
 
 @router.get("/history", response_class=HTMLResponse)

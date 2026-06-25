@@ -29,35 +29,38 @@
 {% elif not scans %}
 <p>{{ t.no_history }}</p>
 {% else %}
-{# One card per past scan (newest first, max 10) — links back to its result page #}
-{% for s in scans %}
-<a class="result level-{{ s.level }} hist-card" href="/result/{{ s.id }}">
-    <div class="hist-head">
-        {{ verdict_badge(s.level, s.label) }}
-        {% if s.created_at %}<span class="hist-time">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</span>{% endif %}
-    </div>
-    <p class="hist-message">{{ s.message }}</p>
-
-    {% if s.signals %}
-    <ul class="signals">
-        {% for sig in s.signals %}
-        <li>
-            <strong>{{ sig.dau_hieu }}</strong>
-            {% if sig.doan_trich %}<div class="snippet">“{{ sig.doan_trich }}”</div>{% endif %}
-        </li>
+{# Compact table (newest first, max 10) — each row links to its result page.
+   Only the verdict, a one-line message preview and the time are shown here;
+   signals and actions live on the result page. #}
+<div class="hist-table-wrap">
+<table class="hist-table">
+    <thead>
+        <tr>
+            <th scope="col">{{ t.col_result }}</th>
+            <th scope="col">{{ t.col_message }}</th>
+            <th scope="col">{{ t.col_signals }}</th>
+            <th scope="col"><span class="sr-only">{{ t.view_details }}</span></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in scans %}
+        <tr class="hist-row level-{{ s.level }}">
+            <td class="hist-verdict">{{ verdict_badge(s.level, s.label) }}</td>
+            <td class="hist-msg">
+                <a class="hist-link" href="/result/{{ s.id }}" title="{{ s.message }}">{{ s.message }}</a>
+            </td>
+            <td class="hist-signals">{{ s.signals | length }}</td>
+            <td class="hist-arrow" aria-hidden="true">
+                {# Heroicons: arrow-right (outline) #}
+                <svg class="hist-view-icon" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                </svg>
+            </td>
+        </tr>
         {% endfor %}
-    </ul>
-    {% endif %}
-
-    <span class="hist-view">
-        {{ t.view_details }}
-        {# Heroicons: arrow-right (outline) #}
-        <svg class="hist-view-icon" xmlns="http://www.w3.org/2000/svg" fill="none"
-            viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-        </svg>
-    </span>
-</a>
-{% endfor %}
+    </tbody>
+</table>
+</div>
 {% endif %}
 {% endblock %}
